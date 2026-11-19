@@ -158,7 +158,7 @@ test("save an unreserved inquiry with an independent line return date", async ({
 
 for (const [section, noun] of [
   ["Rental inquiries", "inquiry"],
-  ["Rental drafts", "rental draft"],
+  ["Rentals", "rental draft"],
 ]) {
   test(
     "browse and edit " + noun + " items across categories and pages",
@@ -197,3 +197,21 @@ for (const [section, noun] of [
     },
   );
 }
+test("convert an inquiry, book, issue and return each line", async ({
+  page,
+}) => {
+  await page.goto("/#/inquiries/1");
+  await page.getByRole("button", { name: "Open as rental draft" }).click();
+  await page.getByRole("button", { name: "Confirm booking" }).click();
+  await expect(page.getByText(/Demo Riverside Hall · Booked/)).toBeVisible();
+  await page.getByRole("button", { name: "Issue rental" }).click();
+  await page.getByLabel("Return quantity").fill("4");
+  await page.getByRole("button", { name: "Save return" }).click();
+  await expect(
+    page.getByText(/Demo Riverside Hall · Partially returned/),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Save return" }).click();
+  await expect(page.getByText(/Demo Riverside Hall · Completed/)).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("Quantity 4")).toContainText("0 outstanding");
+});

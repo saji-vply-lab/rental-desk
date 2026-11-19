@@ -1,3 +1,4 @@
+import { rentalRoutes } from "./rentals";
 import { inquiryRoutes } from "./inquiries";
 import Fastify from "fastify";
 import { openShop } from "./db";
@@ -15,6 +16,7 @@ export async function createApp(path: string, demo: boolean) {
   app.get("/api/overview", async () =>
     overviewSchema.parse(await shop.overview()),
   );
+  rentalRoutes(app, shop.client, demo);
   inquiryRoutes(app, shop.client, demo);
   customerRoutes(app, shop.client, demo);
   inventoryRoutes(app, shop.client, demo);

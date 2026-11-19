@@ -89,3 +89,73 @@ test("production denies unauthenticated inventory changes", async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("book against expected returns, block conflicting issues, and reconcile return batches", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "rentaldesk-rent-"));
+  const app = await createApp(join(dir, "test.db"), true);
+  const date = (days: number) =>
+    new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+  const draft = async (start: number, due: number, quantity: number) => {
+    const result = await app.inject({
+      method: "POST",
+      url: "/api/rental-drafts",
+      payload: {
+        requestId: crypto.randomUUID(),
+        customerId: 1,
+        start: date(start),
+        due: date(due),
+        lines: [
+          {
+            itemId: "ITEM-0002",
+            quantity,
+            startOverride: null,
+            dueOverride: null,
+          },
+        ],
+      },
+    });
+    expect(result.statusCode).toBe(200);
+    return result.json().id as number;
+  };
+  const act = (
+    id: number,
+    action: string,
+    revision: number,
+    extra: object = {},
+  ) =>
+    app.inject({
+      method: "POST",
+      url: "/api/rental-drafts/" + id + "/actions",
+      payload: { action, revision, ...extra },
+    });
+  try {
+    const first = await draft(0, 1, 4);
+    expect((await act(first, "Issue", 1)).json().status).toBe("Issued");
+    const conflict = await draft(0, 1, 1);
+    expect((await act(conflict, "Book", 1)).statusCode).toBe(409);
+    const later = await draft(2, 3, 4);
+    expect((await act(later, "Book", 1)).json().atRisk).toBe(true);
+    expect(
+      (await act(later, "Book", 1, { acceptRisk: true })).json().status,
+    ).toBe("Booked");
+    expect(
+      (await app.inject("/api/rental-drafts/" + later)).json().atRisk,
+    ).toBe(1);
+    expect((await act(later, "Issue", 2)).statusCode).toBe(409);
+    const ret = (n: number, revision: number) =>
+      act(first, "Return", revision, {
+        position: 0,
+        quantity: n,
+        condition: "Good",
+      });
+    expect((await ret(5, 2)).statusCode).toBe(409);
+    expect((await ret(2, 2)).json().status).toBe("Partially returned");
+    expect((await ret(2, 2)).statusCode).toBe(409);
+    expect((await ret(2, 3)).json().status).toBe("Completed");
+    expect((await act(later, "Issue", 2)).json().status).toBe("Issued");
+    expect((await act(conflict, "Cancel", 1)).json().status).toBe("Cancelled");
+  } finally {
+    await app.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});

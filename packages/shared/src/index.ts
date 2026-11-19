@@ -132,6 +132,9 @@ export const inquiryWrite = z
   );
 export type InquiryLine = z.infer<typeof inquiryLine>;
 export type InquirySummary = {
+  atRisk: number;
+  status: string;
+  issuedAt: string | null;
   id: number;
   customer: string;
   start: string;
@@ -140,5 +143,29 @@ export type InquirySummary = {
 export type InquiryDetails = InquirySummary & {
   revision: number;
   customerId: number;
-  lines: (InquiryLine & { name: string })[];
+  events: {
+    id: number;
+    action: string;
+    created: string;
+    position: number | null;
+    quantity: number | null;
+    condition: string | null;
+    remaining: number | null;
+  }[];
+  lines: (InquiryLine & {
+    name: string;
+    returned: number;
+    rate: number | null;
+    model: string | null;
+    period: number | null;
+  })[];
 };
+
+export const rentalAction = z.object({
+  acceptRisk: z.boolean().optional(),
+  action: z.enum(["Book", "Issue", "Cancel", "Return"]),
+  revision: z.number().int().positive(),
+  position: z.number().int().nonnegative().optional(),
+  quantity: z.number().int().positive().optional(),
+  condition: z.enum(["Good", "Damaged", "Missing"]).optional(),
+});

@@ -126,6 +126,21 @@ export async function openShop(path: string, demo: boolean) {
         );
         await tx.execute("INSERT INTO migrations VALUES (6)");
       }
+      if (
+        !(await tx.execute("SELECT version FROM migrations WHERE version=7"))
+          .rows.length
+      ) {
+        await tx.executeMultiple(
+          readFileSync(
+            new URL(
+              "../../../database/migrations/0007-rental-lifecycle.sql",
+              import.meta.url,
+            ),
+            "utf8",
+          ),
+        );
+        await tx.execute("INSERT INTO migrations VALUES (7)");
+      }
       await tx.commit();
     } finally {
       tx.close();

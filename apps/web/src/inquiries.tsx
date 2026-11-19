@@ -1,3 +1,4 @@
+import { RentalActions } from "./rental-actions";
 import { ItemPicker } from "./item-picker";
 import { useEffect, useState, type FormEvent } from "react";
 import type {
@@ -19,9 +20,9 @@ const inquiries = {
 const drafts = {
   base: "#/rental-drafts",
   api: "/api/rental-drafts",
-  title: "Rental drafts",
+  title: "Rentals",
   noun: "rental draft",
-  prefix: "DRAFT",
+  prefix: "RNT",
 };
 type Config = typeof inquiries;
 const dateLabel = (date: string) => date.split("-").reverse().join("/");
@@ -34,8 +35,12 @@ function Directory({
 }) {
   const { base, title, noun, prefix } = config;
   const [query, setQuery] = useState(""),
+    [status, setStatus] = useState(""),
     [order, setOrder] = useState("recent");
   const matches = rows
+    .filter(
+      (r) => !status || (status === "At risk" ? r.atRisk : r.status === status),
+    )
     .filter((r) =>
       (r.customer + " " + prefix + "-" + r.id)
         .toLowerCase()
@@ -68,8 +73,27 @@ function Directory({
           <option value="start">Start date</option>
         </select>
       </label>
+      {config === drafts && (
+        <label>
+          Rental status
+          <select value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="">All statuses</option>
+            {[
+              "Draft",
+              "Booked",
+              "At risk",
+              "Issued",
+              "Partially returned",
+              "Completed",
+              "Cancelled",
+            ].map((s) => (
+              <option key={s}>{s}</option>
+            ))}
+          </select>
+        </label>
+      )}
       <Pages
-        key={query + order}
+        key={query + order + status}
         rows={matches}
         render={(page) =>
           page.length ? (
@@ -79,7 +103,15 @@ function Directory({
                   <a href={base + "/" + r.id}>
                     {prefix}-{r.id} · {r.customer}
                   </a>
-                  <span>{dateLabel(r.start)}</span>
+                  <span>
+                    {dateLabel(r.start)}
+                    {config === drafts && (
+                      <small>
+                        {r.status}
+                        {r.atRisk ? " · At risk" : ""}
+                      </small>
+                    )}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -345,7 +377,7 @@ export function Inquiries({ path }: { path: string }) {
         ]);
         if (alive) {
           T(record);
-          F({ customers, inventory });
+          if (!record || record.status === "Draft") F({ customers, inventory });
         }
       } else if (id) {
         const d = await get(api + "/" + encodeURIComponent(id));
@@ -396,8 +428,14 @@ export function Inquiries({ path }: { path: string }) {
           <h1>
             {prefix}-{details.id}
           </h1>
-          <a href={base + "/" + details.id + "/edit"}>Edit {noun}</a>
-          <p>{details.customer} · Unreserved</p>
+          {details.status === "Draft" && (
+            <a href={base + "/" + details.id + "/edit"}>Edit {noun}</a>
+          )}
+          <p>
+            {details.customer} ·{" "}
+            {config === drafts ? details.status : "Unreserved"}
+            {details.atRisk ? " · At risk: awaiting returns" : ""}
+          </p>
           <p>
             {dateLabel(details.start)} – {dateLabel(details.due)}
           </p>
@@ -412,10 +450,26 @@ export function Inquiries({ path }: { path: string }) {
                   {dateLabel(l.startOverride ?? details.start)} –{" "}
                   {dateLabel(l.dueOverride ?? details.due)}
                 </span>
-                <span className="saved-quantity">Quantity {l.quantity}</span>
+                <span className="saved-quantity">
+                  Quantity {l.quantity}
+                  {details.issuedAt && (
+                    <small>{l.quantity - l.returned} outstanding</small>
+                  )}
+                  {l.rate !== null && (
+                    <small>
+                      ₹{(l.rate / 100).toFixed(2)} /{" "}
+                      {l.model === "Daily" ? "day" : l.period + " days"}
+                    </small>
+                  )}
+                </span>
               </li>
             ))}
           </ul>
+          <RentalActions
+            record={details}
+            inquiry={config === inquiries}
+            refresh={() => A(attempt + 1)}
+          />
         </>
       ) : error ? (
         <button onClick={() => A(attempt + 1)}>Retry</button>

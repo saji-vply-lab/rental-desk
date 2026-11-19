@@ -13,7 +13,7 @@ export function inquiryRoutes(
     ["/api/rental-drafts", "rental-draft"],
   ]) {
     const summary =
-      "SELECT i.id,i.start,i.due,i.revision,i.customer_id AS customerId,c.name AS customer FROM inquiries i JOIN customers c ON c.id=i.customer_id";
+      "SELECT EXISTS(SELECT 1 FROM rental_risk WHERE rental_id=i.id) AS atRisk,i.status,i.issued_at AS issuedAt,i.id,i.start,i.due,i.revision,i.customer_id AS customerId,COALESCE(i.customer_snapshot,c.name) AS customer FROM inquiries i JOIN customers c ON c.id=i.customer_id";
     app.get(
       path,
       options,
@@ -40,9 +40,15 @@ export function inquiryRoutes(
           return reply.code(404).send({ message: "Inquiry not found." });
         return {
           ...row,
+          events: (
+            await client.execute({
+              sql: "SELECT * FROM rental_events WHERE rental_id=? ORDER BY id DESC",
+              args,
+            })
+          ).rows,
           lines: (
             await client.execute({
-              sql: "SELECT item_id AS itemId,item_name AS name,quantity,start_override AS startOverride,due_override AS dueOverride FROM inquiry_lines WHERE inquiry_id=? ORDER BY position",
+              sql: "SELECT item_id AS itemId,item_name AS name,returned,agreed_rate AS rate,agreed_model AS model,agreed_period AS period,quantity,start_override AS startOverride,due_override AS dueOverride FROM inquiry_lines WHERE inquiry_id=? ORDER BY position",
               args,
             })
           ).rows,
@@ -84,7 +90,7 @@ export function inquiryRoutes(
         let id = editId;
         if (id !== undefined) {
           const changed = await tx.execute({
-            sql: "UPDATE inquiries SET customer_id=?,start=?,due=?,revision=revision+1 WHERE id=? AND kind=? AND revision=?",
+            sql: "UPDATE inquiries SET customer_id=?,start=?,due=?,revision=revision+1 WHERE id=? AND kind=? AND revision=? AND status='Draft'",
             args: [customerId, start, due, id, kind, parsed.data.revision ?? 0],
           });
           if (!changed.rowsAffected)
@@ -116,7 +122,7 @@ export function inquiryRoutes(
               .code(400)
               .send({ message: "Choose an active inventory item." });
           await tx.execute({
-            sql: "INSERT INTO inquiry_lines VALUES(?,?,?,?,?,?,?)",
+            sql: "INSERT INTO inquiry_lines(inquiry_id,position,item_id,item_name,quantity,start_override,due_override) VALUES(?,?,?,?,?,?,?)",
             args: [
               id,
               position,

@@ -1,3 +1,4 @@
+import { commitmentFloor } from "./rentals";
 import type { FastifyInstance } from "fastify";
 import type { Client, Transaction } from "@libsql/client";
 import { itemWrite, categoryWrite, adjustment } from "@rentaldesk/shared";
@@ -123,6 +124,8 @@ export function inventoryRoutes(
       const columns = Object.keys(fields),
         values = Object.values(fields);
       if (id) {
+        if (!fields.active && (await commitmentFloor(tx, id)) > 0)
+          reject("Item has active commitments.", 409);
         const result = await tx.execute({
           sql:
             "UPDATE items SET " +
@@ -184,6 +187,8 @@ export function inventoryRoutes(
         unusable = Number(item.unusable) + quantity * dUnusable;
       if (unusable < 0 || owned < unusable)
         reject("Quantity exceeds the stock in this condition.");
+      if (owned - unusable < (await commitmentFloor(tx, id)))
+        reject("Stock is committed to a rental.", 409);
       await tx.execute({
         sql: "UPDATE items SET owned=?,unusable=?,revision=revision+1 WHERE id=?",
         args: [owned, unusable, id],

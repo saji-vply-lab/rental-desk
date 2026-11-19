@@ -390,3 +390,44 @@ article,
     text-align: right;
   }
 }
+.rental-actions {
+  margin-block: 1.5rem;
+}
+.rental-actions h2 {
+  margin-top: 1rem;
+}
+@media print {
+  body {
+    background: white;
+  }
+  nav,
+  button,
+  .management > a,
+  .rental-actions fieldset {
+    display: none;
+  }
+  .management h1 {
+    background: white;
+    color: black;
+    padding: 0;
+  }
+  main.management {
+    width: 100%;
+    max-width: none;
+  }
+}
+.return-slip {
+  border: 1px solid var(--line);
+  padding: 1rem;
+  background: white;
+  margin-bottom: 1rem;
+}
+@media print {
+  body:has(.return-slip) main.management > :not(.rental-actions),
+  body:has(.return-slip) .rental-actions > :not(.return-slip) {
+    display: none;
+  }
+  .return-slip {
+    border: 0;
+  }
+}

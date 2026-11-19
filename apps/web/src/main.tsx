@@ -55,7 +55,7 @@ function Dashboard() {
         <nav aria-label="Shop workflows">
           <a href="#/customers">Customers</a>
           <a href="#/inquiries">Rental inquiries</a>
-          <a href="#/rental-drafts">Rental drafts</a>
+          <a href="#/rental-drafts">Rentals</a>
         </nav>
         {error ? (
           <p role="alert">
