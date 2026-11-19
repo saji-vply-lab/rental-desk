@@ -6,6 +6,7 @@ import "./style.css";
 declare const __BRAND__: { label: string; accent: string };
 document.documentElement.style.setProperty("--accent", __BRAND__.accent);
 function Dashboard() {
+  const [search, setSearch] = useState("");
   const [overview, setOverview] = useState<Overview>();
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -24,6 +25,12 @@ function Dashboard() {
     return () => controller.abort();
   }, [attempt]);
   const rows = overview?.items || [];
+  const query = search.trim().toLowerCase();
+  const matches = rows.filter((item) =>
+    [item.id, item.name, item.category].some((field) =>
+      field.toLowerCase().includes(query),
+    ),
+  );
   return (
     <>
       <header>
@@ -66,11 +73,28 @@ function Dashboard() {
             </section>
             <section className="stock">
               <h2>Stock overview</h2>
+              {rows.length > 0 && (
+                <label className="inventory-search">
+                  Search inventory
+                  <input
+                    type="search"
+                    value={search}
+                    placeholder="Item ID, name or category"
+                    onChange={(event) => setSearch(event.target.value)}
+                  />
+                </label>
+              )}
+              {query && (
+                <p role="status">
+                  {matches.length} of {rows.length} items
+                  <button onClick={() => setSearch("")}>Clear search</button>
+                </p>
+              )}
               {rows.length === 0 ? (
                 <p>No inventory items yet.</p>
               ) : (
                 <ul>
-                  {rows.map((i) => (
+                  {matches.map((i) => (
                     <li key={i.id}>
                       <div>
                         <b>{i.name}</b>

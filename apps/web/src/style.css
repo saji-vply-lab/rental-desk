@@ -100,3 +100,18 @@ button {
     font-size: 0.85rem;
   }
 }
+.inventory-search {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+.inventory-search input {
+  width: 100%;
+  max-width: 30rem;
+  padding: 0.7rem;
+  border: 1px solid #84978e;
+  border-radius: 0.45rem;
+  font: inherit;
+  font-weight: 400;
+}
