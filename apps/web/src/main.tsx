@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { Boxes, Layers, Wrench, Store } from "lucide-react";
 import { overviewSchema, type Overview } from "@rentaldesk/shared";
 import "./style.css";
+import { InventoryScreen } from "./inventory";
 declare const __BRAND__: { label: string; accent: string };
 document.documentElement.style.setProperty("--accent", __BRAND__.accent);
 function Dashboard() {
@@ -77,6 +78,9 @@ function Dashboard() {
             </section>
             <section className="stock">
               <h2>Stock overview</h2>
+              <nav>
+                <a href="#/inventory">Manage inventory</a>
+              </nav>
               {rows.length > 0 && (
                 <div className="inventory-filters">
                   <label className="inventory-search">
@@ -119,7 +123,11 @@ function Dashboard() {
                   {matches.map((i) => (
                     <li key={i.id}>
                       <div>
-                        <b>{i.name}</b>
+                        <a
+                          href={"#/inventory/items/" + encodeURIComponent(i.id)}
+                        >
+                          {i.name}
+                        </a>
                         <small>
                           {i.id} · {i.category}
                         </small>
@@ -141,4 +149,20 @@ function Dashboard() {
     </>
   );
 }
-createRoot(document.getElementById("root")!).render(<Dashboard />);
+function App() {
+  const [path, setPath] = useState(location.hash.slice(1));
+  useEffect(() => {
+    const change = () => {
+      setPath(location.hash.slice(1));
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener("hashchange", change);
+    return () => window.removeEventListener("hashchange", change);
+  }, []);
+  return path.startsWith("/inventory") ? (
+    <InventoryScreen key={path} path={path} />
+  ) : (
+    <Dashboard />
+  );
+}
+createRoot(document.getElementById("root")!).render(<App />);

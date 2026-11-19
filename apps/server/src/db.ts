@@ -50,12 +50,28 @@ export async function openShop(path: string, demo: boolean) {
           );
         await tx.execute("INSERT INTO migrations VALUES (1)");
       }
+      if (
+        !(await tx.execute("SELECT version FROM migrations WHERE version=2"))
+          .rows.length
+      ) {
+        await tx.executeMultiple(
+          readFileSync(
+            new URL(
+              "../../../database/migrations/0002-inventory.sql",
+              import.meta.url,
+            ),
+            "utf8",
+          ),
+        );
+        await tx.execute("INSERT INTO migrations VALUES (2)");
+      }
       await tx.commit();
     } finally {
       tx.close();
     }
     const db = drizzle(client);
     return {
+      client,
       close: () => client.close(),
       health: () => client.execute("SELECT 1"),
       async overview() {

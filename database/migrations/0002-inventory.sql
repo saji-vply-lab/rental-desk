@@ -1,0 +1,13 @@
+CREATE TABLE categories(name TEXT PRIMARY KEY COLLATE NOCASE, active INTEGER NOT NULL DEFAULT 1);
+INSERT OR IGNORE INTO categories(name) SELECT DISTINCT category FROM items;
+INSERT OR IGNORE INTO categories(name) VALUES ('Furniture'),('Pumps & Motors'),('Cleaning Equipment'),('Covers & Sheets'),('Tools & Machinery'),('Cooking Vessels & Containers');
+ALTER TABLE items ADD COLUMN description TEXT NOT NULL DEFAULT '';
+ALTER TABLE items ADD COLUMN model TEXT NOT NULL DEFAULT 'Daily';
+ALTER TABLE items ADD COLUMN period INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE items ADD COLUMN rate INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE items ADD COLUMN cost INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE items ADD COLUMN replacement INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE items ADD COLUMN active INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE items ADD COLUMN revision INTEGER NOT NULL DEFAULT 1;
+CREATE TABLE movements(id INTEGER PRIMARY KEY, item TEXT NOT NULL REFERENCES items(id), kind TEXT NOT NULL, quantity INTEGER NOT NULL, owned INTEGER NOT NULL, unusable INTEGER NOT NULL, reason TEXT NOT NULL, actor TEXT NOT NULL, created TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+INSERT INTO movements(item,kind,quantity,owned,unusable,reason,actor) SELECT id,'Opening balance',owned,owned,unusable,'Existing inventory','Migration' FROM items;
