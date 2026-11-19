@@ -173,7 +173,7 @@ function Catalog({ data }: { data: Inventory }) {
         render={(page) => (
           <ul>
             {page.map((i) => (
-              <li key={i.id}>
+              <li className="stock-row" key={i.id}>
                 <div>
                   <a href={itemLink(i.id)}>{i.name}</a>
                   <small>

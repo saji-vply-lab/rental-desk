@@ -216,13 +216,13 @@ function Editor({
               }
             />
             {lines.map((l, index) => (
-              <fieldset key={l.key}>
-                <legend>Item {index + 1}</legend>
-                <b>
-                  {inventory.items.find((i) => i.id === l.itemId)?.name} ·{" "}
-                  {l.itemId}
-                </b>
-                <label>
+              <fieldset key={l.key} className="editable-line">
+                <legend className="sr-only">Item {index + 1}</legend>
+                <div className="line-title">
+                  <b>{inventory.items.find((i) => i.id === l.itemId)?.name}</b>
+                  <small>{l.itemId}</small>
+                </div>
+                <label className="line-quantity">
                   Quantity
                   <input
                     type="number"
@@ -234,50 +234,67 @@ function Editor({
                     }
                   />
                 </label>
-                {(["startOverride", "dueOverride"] as const).map((k) => {
-                  const title = k === "startOverride" ? "start" : "return",
-                    common = k === "startOverride" ? start : due;
-                  return (
-                    <div key={k}>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={l[k] !== null}
-                          onChange={(e) =>
-                            update(l.key, {
-                              [k]: e.target.checked ? common : null,
-                            })
-                          }
-                        />
-                        Override {title} date
-                      </label>
-                      {l[k] !== null ? (
-                        <label>
-                          Item {title} date
-                          <input
-                            type="date"
-                            required
-                            min={
-                              k === "dueOverride"
-                                ? (l.startOverride ?? start)
-                                : undefined
-                            }
-                            value={l[k]}
-                            onChange={(e) =>
-                              update(l.key, { [k]: e.target.value })
-                            }
-                          />
-                        </label>
-                      ) : (
-                        <small>
-                          {title === "start" ? "Starts" : "Due"}{" "}
-                          {dateLabel(common)}
-                        </small>
-                      )}
-                    </div>
-                  );
-                })}
+                <details className="line-dates">
+                  <summary>
+                    <span>
+                      {dateLabel(l.startOverride ?? start)} –{" "}
+                      {dateLabel(l.dueOverride ?? due)}
+                    </span>
+                    <small>
+                      {l.startOverride !== null || l.dueOverride !== null
+                        ? "Custom dates"
+                        : "Common dates"}{" "}
+                      · Edit
+                    </small>
+                  </summary>
+                  <div className="date-options">
+                    {(["startOverride", "dueOverride"] as const).map((k) => {
+                      const title = k === "startOverride" ? "start" : "return",
+                        common = k === "startOverride" ? start : due;
+                      return (
+                        <div key={k}>
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={l[k] !== null}
+                              onChange={(e) =>
+                                update(l.key, {
+                                  [k]: e.target.checked ? common : null,
+                                })
+                              }
+                            />
+                            Override {title} date
+                          </label>
+                          {l[k] !== null ? (
+                            <label>
+                              Item {title} date
+                              <input
+                                type="date"
+                                required
+                                min={
+                                  k === "dueOverride"
+                                    ? (l.startOverride ?? start)
+                                    : undefined
+                                }
+                                value={l[k]}
+                                onChange={(e) =>
+                                  update(l.key, { [k]: e.target.value })
+                                }
+                              />
+                            </label>
+                          ) : (
+                            <small>
+                              {title === "start" ? "Starts" : "Due"}{" "}
+                              {dateLabel(common)}
+                            </small>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </details>
                 <button
+                  className="line-remove"
                   type="button"
                   onClick={() =>
                     setLines(lines.filter((row) => row.key !== l.key))
@@ -386,15 +403,16 @@ export function Inquiries({ path }: { path: string }) {
           </p>
           <ul>
             {details.lines.map((l, i) => (
-              <li key={i}>
+              <li className="saved-line" key={i}>
                 <div>
-                  {l.itemId} · {l.name}
-                  <small>
-                    {dateLabel(l.startOverride ?? details.start)} –{" "}
-                    {dateLabel(l.dueOverride ?? details.due)}
-                  </small>
+                  <b>{l.name}</b>
+                  <small>{l.itemId}</small>
                 </div>
-                <span>Quantity {l.quantity}</span>
+                <span className="saved-dates">
+                  {dateLabel(l.startOverride ?? details.start)} –{" "}
+                  {dateLabel(l.dueOverride ?? details.due)}
+                </span>
+                <span className="saved-quantity">Quantity {l.quantity}</span>
               </li>
             ))}
           </ul>

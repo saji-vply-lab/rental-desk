@@ -145,6 +145,7 @@ test("save an unreserved inquiry with an independent line return date", async ({
   await page.getByRole("button", { name: "Choose Folding chair" }).click();
   await page.getByRole("button", { name: "Add to lines" }).click();
   await page.getByLabel("Quantity").fill("100");
+  await page.locator(".line-dates summary").click();
   await page.getByLabel("Override return date").check();
   await page.getByLabel("Item return date").fill("2027-02-07");
   await page.getByLabel("Common return date").fill("2027-02-04");

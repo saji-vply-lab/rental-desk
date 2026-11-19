@@ -298,3 +298,95 @@ article,
     padding-inline: 0.65rem;
   }
 }
+
+.stock-row,
+.picker-row,
+.saved-line,
+.management .editable-line {
+  display: grid;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.stock-row,
+.picker-row,
+.saved-line {
+  padding: 0.65rem 0;
+}
+.stock-row {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+}
+.picker-row {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) auto;
+}
+.saved-line {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) minmax(6rem, 1fr);
+}
+.saved-quantity {
+  text-align: right;
+  font-weight: 600;
+}
+.management .picker-row button,
+.management .line-remove {
+  margin: 0;
+  min-height: 44px;
+}
+.management .editable-line {
+  grid-template-columns: minmax(0, 2fr) 5.5rem minmax(0, 2fr) auto;
+  margin-block: 0.65rem;
+  padding: 0.65rem 1rem;
+}
+.management .line-quantity {
+  margin: 0;
+  font-size: 0.875rem;
+}
+.line-dates summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding-block: 0.25rem;
+}
+.line-dates summary small {
+  margin: 0;
+}
+.management .line-remove {
+  color: var(--accent);
+  background: transparent;
+  text-decoration: underline;
+}
+@media (max-width: 700px) {
+  .management .editable-line {
+    grid-template-columns: minmax(0, 1fr) 5rem;
+    gap: 0.4rem 0.65rem;
+    padding: 0.6rem;
+  }
+  .management .line-remove {
+    padding: 0.35rem;
+  }
+  .management fieldset {
+    padding: 0.8rem;
+  }
+  .picker-row,
+  .saved-line {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .picker-stock,
+  .saved-dates {
+    grid-column: 1;
+  }
+  .picker-row button,
+  .saved-quantity {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+  .picker-stock {
+    font-size: 0.875rem;
+  }
+  .stock-row {
+    gap: 0.5rem;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  }
+  .stock-row div:last-child {
+    text-align: right;
+  }
+}

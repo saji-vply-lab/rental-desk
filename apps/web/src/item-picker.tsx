@@ -102,12 +102,15 @@ export function ItemPicker({
       </div>
       <ul>
         {matches.slice(current * size, (current + 1) * size).map((i) => (
-          <li key={i.id}>
+          <li key={i.id} className="picker-row">
             <div>
               <b>{i.name}</b>
-              <small>
-                {i.id} · {i.zone} / {i.subzone}
-              </small>
+              <small>{i.id}</small>
+            </div>
+            <div className="picker-stock">
+              <span>
+                {i.zone} / {i.subzone}
+              </span>
               <small>
                 {i.owned} owned · {i.unusable} unusable
               </small>
