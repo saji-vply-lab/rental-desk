@@ -1,3 +1,13 @@
+import { rupees } from "./billing";
+function returnAmounts(snapshot: string) {
+  const b = JSON.parse(snapshot);
+  return [
+    "Rental charges for this return: " + rupees(b.base),
+    "Late fees for this return: " + rupees(b.late),
+    "Net paid at return: " + rupees(b.paid),
+    "Estimated balance at return: " + rupees(b.balance),
+  ];
+}
 import { useState } from "react";
 import type { InquiryDetails } from "@rentaldesk/shared";
 import { headers } from "./owner-access";
@@ -232,6 +242,9 @@ export function RentalActions({
                               event.condition +
                               ")",
                             "Remaining after this return: " + event.remaining,
+                            ...(event.billing_snapshot
+                              ? returnAmounts(event.billing_snapshot)
+                              : []),
                           ].join("\n"),
                         )
                       }

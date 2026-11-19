@@ -1,3 +1,4 @@
+import { rupees } from "./billing";
 import { useEffect, useState } from "react";
 import type { OperationsDashboard, PendingReturn } from "@rentaldesk/shared";
 import { Pages } from "./inventory";
@@ -47,6 +48,41 @@ function Operations({ data }: { data: OperationsDashboard }) {
           </article>
         ))}
       </div>
+      {data.finance && (
+        <section className="ops-section">
+          <h3>Collections and balances</h3>
+          <dl className="bill-totals">
+            {[
+              ["Net collected today", data.finance.dayNet],
+              ["Net collected this month", data.finance.monthNet],
+              ["Outstanding finalized bills", data.finance.outstanding],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>{rupees(Number(value))}</dd>
+              </div>
+            ))}
+          </dl>
+          {data.finance.customers.length > 0 && (
+            <details>
+              <summary>Customer balances</summary>
+              <Pages
+                rows={data.finance.customers}
+                render={(page) => (
+                  <ul>
+                    {page.map((c) => (
+                      <li key={c.id}>
+                        <a href={"#/customers/" + c.id}>{c.name}</a>
+                        <span>{rupees(c.balance)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              />
+            </details>
+          )}
+        </section>
+      )}
       <section className="ops-section" aria-labelledby="critical">
         <h3 id="critical">Critical returns</h3>
         {critical.length ? (

@@ -477,3 +477,30 @@ article,
 .ops-section summary {
   cursor: pointer;
 }
+.bill-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: 0.5rem;
+}
+.bill-totals dd {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.bill-controls summary {
+  cursor: pointer;
+  padding: 0.8rem 0;
+}
+@media print {
+  .bill-controls {
+    display: none;
+  }
+}
+@media print {
+  body:has(.payment-receipt) main.management > :not(.billing),
+  body:has(.payment-receipt) .billing > :not(.payment-receipt) {
+    display: none;
+  }
+  body:has(.payment-receipt) .billing {
+    border: 0;
+  }
+}

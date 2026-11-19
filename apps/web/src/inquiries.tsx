@@ -1,3 +1,4 @@
+import { Billing } from "./billing";
 import { RentalActions } from "./rental-actions";
 import { ItemPicker } from "./item-picker";
 import { useEffect, useState, type FormEvent } from "react";
@@ -465,6 +466,13 @@ export function Inquiries({ path }: { path: string }) {
               </li>
             ))}
           </ul>
+          {config === drafts && (
+            <Billing
+              id={details.id}
+              revision={details.revision}
+              refresh={() => A(attempt + 1)}
+            />
+          )}
           <RentalActions
             record={details}
             inquiry={config === inquiries}

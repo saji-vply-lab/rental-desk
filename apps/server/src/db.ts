@@ -141,6 +141,21 @@ export async function openShop(path: string, demo: boolean) {
         );
         await tx.execute("INSERT INTO migrations VALUES (7)");
       }
+      if (
+        !(await tx.execute("SELECT version FROM migrations WHERE version=8"))
+          .rows.length
+      ) {
+        await tx.executeMultiple(
+          readFileSync(
+            new URL(
+              "../../../database/migrations/0008-billing.sql",
+              import.meta.url,
+            ),
+            "utf8",
+          ),
+        );
+        await tx.execute("INSERT INTO migrations VALUES (8)");
+      }
       await tx.commit();
     } finally {
       tx.close();

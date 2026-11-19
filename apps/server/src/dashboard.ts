@@ -49,7 +49,28 @@ export function dashboardRoutes(
             args: [today, today, today, today],
           })
         ).rows;
-        return { today, pending, bookings, available, activity };
+        const net = (
+          await tx.execute({
+            sql: "SELECT COALESCE(SUM(CASE WHEN effective_date=? THEN amount ELSE 0 END),0) AS dayNet,COALESCE(SUM(amount),0) AS monthNet FROM billing_entries WHERE method<>'' AND effective_date BETWEEN date(?,'start of month') AND ?",
+            args: [today, today, today],
+          })
+        ).rows[0];
+        const customers = (
+          await tx.execute(`WITH balances AS (SELECT i.customer_id,b.total-COALESCE((SELECT SUM(amount) FROM billing_entries e WHERE e.rental_id=i.id AND e.method<>''),0) AS balance FROM bills b JOIN inquiries i ON b.rental_id=i.id)
+          SELECT c.id,c.name,SUM(b.balance) AS balance FROM balances b JOIN customers c ON c.id=b.customer_id GROUP BY c.id HAVING SUM(b.balance)>0 ORDER BY balance DESC,c.id`)
+        ).rows;
+        return {
+          today,
+          pending,
+          bookings,
+          available,
+          activity,
+          finance: {
+            ...net,
+            customers,
+            outstanding: customers.reduce((n, c) => n + Number(c.balance), 0),
+          },
+        };
       } finally {
         tx.close();
       }

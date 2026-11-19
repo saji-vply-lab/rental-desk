@@ -28,3 +28,9 @@ The fictional development preview allows edits as Demo owner. For local producti
 ### Tenant appearance
 
 Place an optional `theme.css` next to the selected tenant’s `brand.json`. The demo theme sets the accent, paper and ink colors, display font and locally bundled background photograph. Reference tenant images with relative CSS URLs. The dashboard uses the wide banner and management pages use the compact banner. A tenant without a stylesheet uses the shared theme and its configured accent.
+
+## Billing and payments
+
+Rental estimates use inclusive calendar dates and the agreed item rate. Fixed periods round up to whole periods for each quantity batch. Returned units stop accruing on their return date. Outstanding issued units are projected to the later of today and their expected return. The starting late fee is ₹0; an owner can record a per-unit daily fee and grace period for an open rental with a reason.
+
+Open a rental and expand **Payments and billing adjustments** to record an advance, partial payment, refund, delivery or pickup charge, damage or loss charge, discount, or negotiated reduction. Percentage discounts use the base rental charge at the time the discount is recorded. Historical entries can be reversed with a reason. **Finalize bill** becomes available after all stock is returned and freezes the charges. Payments and refunds continue against that final total. Dashboard collections use payment dates and are net of refunds and corrections. Financial actions require owner access outside the fictional demo.

@@ -1,3 +1,4 @@
+import { readBill, unitCharges } from "./billing";
 import type { FastifyInstance } from "fastify";
 import type { Client, Transaction } from "@libsql/client";
 import { randomUUID } from "node:crypto";
@@ -206,7 +207,7 @@ export function rentalRoutes(
               "This booking depends on outstanding items being returned. Confirm to mark the booking At risk.",
           });
         }
-        await tx.execute({
+        const event = await tx.execute({
           sql: "INSERT INTO rental_events(rental_id,action,position,quantity,condition,remaining) VALUES(?,?,?,?,?,?)",
           args: [
             id,
@@ -217,6 +218,32 @@ export function rentalRoutes(
             remaining,
           ],
         });
+        if (action === "Return" && quantity && position !== undefined) {
+          const bill = await readBill(tx, Number(id)),
+            line = bill.lines[position];
+          const charge = unitCharges(
+            line.start,
+            line.due,
+            bill.today,
+            quantity,
+            line.rate,
+            line.period,
+            bill.rate,
+            bill.grace,
+          );
+          await tx.execute({
+            sql: "UPDATE rental_events SET billing_snapshot=? WHERE id=?",
+            args: [
+              JSON.stringify({
+                ...charge,
+                total: bill.total,
+                paid: bill.paid,
+                balance: bill.balance,
+              }),
+              Number(event.lastInsertRowid),
+            ],
+          });
+        }
         await tx.commit();
         return { status };
       } finally {

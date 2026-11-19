@@ -272,3 +272,22 @@ test("dashboard filters pending lines and links critical returns to rentals", as
     ),
   ).toBe(true);
 });
+
+test("record a booking advance and see its receipt in billing history", async ({
+  page,
+  request,
+}) => {
+  const rental = (await (await request.post("/api/inquiries/2/rental")).json())
+    .id;
+  await page.goto("/#/rental-drafts/" + rental);
+  await page.getByRole("button", { name: "Confirm booking" }).click();
+  await page
+    .getByText("Payments and billing adjustments", { exact: true })
+    .click();
+  await page.getByLabel("Amount (₹)", { exact: true }).fill("125.50");
+  await page.getByLabel("Payment reference").fill("DEMO-ADVANCE");
+  await page.getByRole("button", { name: "Record payment" }).click();
+  await expect(page.getByText(/Cash DEMO-ADVANCE/)).toBeVisible();
+  await page.reload();
+  await expect(page.getByText(/Cash DEMO-ADVANCE/)).toBeVisible();
+});

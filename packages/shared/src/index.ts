@@ -151,6 +151,7 @@ export type InquiryDetails = InquirySummary & {
     quantity: number | null;
     condition: string | null;
     remaining: number | null;
+    billing_snapshot?: string | null;
   }[];
   lines: (InquiryLine & {
     name: string;
@@ -190,6 +191,12 @@ export type DashboardBooking = {
   atRisk: number;
 };
 export type OperationsDashboard = {
+  finance?: {
+    dayNet: number;
+    monthNet: number;
+    outstanding: number;
+    customers: { id: number; name: string; balance: number }[];
+  };
   today: string;
   pending: PendingReturn[];
   bookings: DashboardBooking[];
@@ -202,3 +209,91 @@ export type OperationsDashboard = {
     dayUnits: number;
   }[];
 };
+export const paymentKinds = ["Payment", "Refund"] as const;
+export const adjustmentTypes = [
+  "Delivery",
+  "Pickup",
+  "Damage",
+  "Loss",
+  "Discount",
+  "Late fee waiver",
+  "Negotiated adjustment",
+] as const;
+const paise = z.number().int().min(1).max(100000000000);
+export const billingCommand = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("Payment"),
+    kind: z.enum(paymentKinds),
+    amount: paise,
+    method: z.enum(["Cash", "UPI", "Bank transfer"]),
+    date: z.iso.date(),
+    reference: z.string().trim().max(160),
+    note: z.string().trim().max(500),
+  }),
+  z.object({
+    action: z.literal("Adjustment"),
+    kind: z.enum(adjustmentTypes),
+    amount: paise,
+    note: z.string().trim().min(1).max(500),
+    percent: z.boolean().optional(),
+  }),
+  z.object({
+    action: z.literal("Reverse"),
+    entryId: z.number().int().positive(),
+    note: z.string().trim().min(1).max(500),
+  }),
+  z.object({
+    action: z.literal("Policy"),
+    rate: z.number().int().min(0).max(100000000),
+    grace: z.number().int().min(0).max(365),
+    note: z.string().trim().min(1).max(500),
+  }),
+  z.object({ action: z.literal("Finalize") }),
+]);
+export const billingRequest = z.object({
+  requestId: z.uuid(),
+  revision: z.number().int().positive(),
+  command: billingCommand,
+});
+export type BillingLine = {
+  position: number;
+  name: string;
+  itemId: string;
+  start: string;
+  due: string;
+  quantity: number;
+  rate: number;
+  period: number;
+  model: string;
+  base: number;
+  late: number;
+};
+export type BillingEntry = {
+  id: number;
+  kind: string;
+  amount: number;
+  method: string;
+  reference: string;
+  note: string;
+  date: string;
+  reversedId: number | null;
+  percent: number | null;
+};
+export type Bill = {
+  customer: string;
+  id: number;
+  revision: number;
+  status: string;
+  today: string;
+  finalized: string | null;
+  lines: BillingLine[];
+  base: number;
+  late: number;
+  total: number;
+  paid: number;
+  balance: number;
+  rate: number;
+  grace: number;
+  entries: BillingEntry[];
+};
+export type BillingCommand = z.infer<typeof billingCommand>;

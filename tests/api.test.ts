@@ -179,3 +179,124 @@ test("book against expected returns, block conflicting issues, and reconcile ret
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("calculate inclusive daily and fixed-period batches and charge only late units after grace", async () => {
+  const { unitCharges } = await import("../apps/server/src/billing");
+  expect(
+    unitCharges("2026-10-01", "2026-10-03", "2026-10-01", 2, 10000, 1, 0, 0),
+  ).toEqual({ base: 20000, late: 0 });
+  expect(
+    unitCharges("2026-10-01", "2026-10-03", "2026-10-06", 1, 10000, 3, 500, 1),
+  ).toEqual({ base: 20000, late: 1000 });
+});
+test("finalize rental, record an advance, correct a payment, and preserve finalized charges", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "rentaldesk-billing-"));
+  const app = await createApp(join(dir, "shop.db"), true);
+  try {
+    const id = (
+      await app.inject({ method: "POST", url: "/api/inquiries/1/rental" })
+    ).json().id;
+    const url = "/api/rental-drafts/" + id;
+    const bill = async () => (await app.inject(url + "/billing")).json();
+    const act = async (action: string, extra: object = {}) =>
+      app.inject({
+        method: "POST",
+        url: url + "/actions",
+        payload: { action, revision: (await bill()).revision, ...extra },
+      });
+    const post = async (command: object) =>
+      app.inject({
+        method: "POST",
+        url: url + "/billing",
+        payload: {
+          requestId: crypto.randomUUID(),
+          revision: (await bill()).revision,
+          command,
+        },
+      });
+    expect((await act("Book")).statusCode).toBe(200);
+    const advance = {
+      requestId: crypto.randomUUID(),
+      revision: (await bill()).revision,
+      command: {
+        action: "Payment",
+        kind: "Payment",
+        amount: 15000,
+        method: "UPI",
+        reference: "demo",
+        date: (await bill()).today,
+        note: "Advance",
+      },
+    };
+    for (let i = 0; i < 2; i++)
+      expect(
+        (
+          await app.inject({
+            method: "POST",
+            url: url + "/billing",
+            payload: advance,
+          })
+        ).json().paid,
+      ).toBe(15000);
+    expect((await act("Issue")).statusCode).toBe(200);
+    expect(
+      (
+        await post({
+          action: "Adjustment",
+          kind: "Delivery",
+          amount: 2000,
+          note: "Delivery",
+        })
+      ).statusCode,
+    ).toBe(200);
+    for (const [position, quantity] of [
+      [0, 3],
+      [0, 1],
+      [1, 1],
+    ])
+      expect(
+        (await act("Return", { position, quantity, condition: "Good" }))
+          .statusCode,
+      ).toBe(200);
+    const settled = await bill();
+    expect(settled.base).toBe(4 * 15000 + 75000);
+    expect(
+      (
+        await post({
+          action: "Adjustment",
+          kind: "Discount",
+          amount: 1000,
+          percent: true,
+          note: "10% agreed discount",
+        })
+      ).json().total,
+    ).toBe(123500);
+    expect((await post({ action: "Finalize" })).json().balance).toBe(108500);
+    expect(
+      (
+        await post({
+          action: "Adjustment",
+          kind: "Damage",
+          amount: 500,
+          note: "Late edit",
+        })
+      ).statusCode,
+    ).toBe(409);
+    expect(
+      (
+        await post({
+          action: "Reverse",
+          entryId: settled.entries[0].id,
+          note: "Wrong payment method",
+        })
+      ).json().paid,
+    ).toBe(0);
+    const finance = (await app.inject("/api/dashboard/operations")).json()
+      .finance;
+    expect(finance.dayNet).toBe(0);
+    expect(finance.outstanding).toBe(123500);
+  } finally {
+    await app.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
