@@ -24,3 +24,7 @@ After building, run `pnpm start` to serve the bundled dashboard and API together
 Open **Manage inventory** on the dashboard. Search or scan an item ID and press Enter to open it. The catalog links to category management, item creation, pricing and location edits, stock adjustments and movement history. Prices are entered in rupees. Stock adjustments record the quantity, reason, operator and resulting balance.
 
 The fictional development preview allows edits as Demo owner. For local production writes, configure RENTALDESK_OWNER_KEY or RENTALDESK_INVENTORY_STAFF_KEY on the server and enter the corresponding key on the form. These are interim inventory permissions pending named account management. Keep production credentials outside Git.
+
+### Tenant appearance
+
+Place an optional `theme.css` next to the selected tenant’s `brand.json`. The demo theme sets the accent, paper and ink colors, display font and locally bundled background photograph. Reference tenant images with relative CSS URLs. The dashboard uses the wide banner and management pages use the compact banner. A tenant without a stylesheet uses the shared theme and its configured accent.

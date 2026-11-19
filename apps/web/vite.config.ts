@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import tailwindcss from "@tailwindcss/vite";
-import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { existsSync, readFileSync } from "node:fs";
 const key = process.env.TENANT_KEY || "demo-shop";
 if (!/^[a-z0-9-]+$/.test(key)) throw Error("Invalid tenant key");
 const brand = JSON.parse(
@@ -9,7 +10,20 @@ const brand = JSON.parse(
     "utf8",
   ),
 );
+const tenantTheme = new URL(
+  "../../tenants/" + key + "/theme.css",
+  import.meta.url,
+);
 export default defineConfig({
+  resolve: {
+    alias: {
+      "@tenant/theme.css": fileURLToPath(
+        existsSync(tenantTheme)
+          ? tenantTheme
+          : new URL("./src/default-theme.css", import.meta.url),
+      ),
+    },
+  },
   plugins: [tailwindcss()],
   define: { __BRAND__: JSON.stringify(brand) },
   server: {

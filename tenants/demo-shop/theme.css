@@ -1,0 +1,12 @@
+:root {
+  --accent: #275543;
+  --page-paper: #f2efe7;
+  --card-paper: #fffefa;
+  --ink: #253a31;
+  --line: #d8d9ce;
+  --banner-dark: #172e24;
+  --banner-wash: rgba(26, 48, 36, 0.86);
+  --tenant-image: url("./courtyard.webp");
+  --image-position: center 53%;
+  --display-font: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+}

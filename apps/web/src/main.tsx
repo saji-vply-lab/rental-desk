@@ -4,10 +4,11 @@ import { createRoot } from "react-dom/client";
 import { Boxes, Layers, Wrench, Store } from "lucide-react";
 import { overviewSchema, type Overview } from "@rentaldesk/shared";
 import "./style.css";
+import "@tenant/theme.css";
 import { Customers } from "./customers";
 import { InventoryScreen, Pages } from "./inventory";
 declare const __BRAND__: { label: string; accent: string };
-document.documentElement.style.setProperty("--accent", __BRAND__.accent);
+document.documentElement.style.setProperty("--brand-accent", __BRAND__.accent);
 function Dashboard() {
   const [category, setCategory] = useState("");
   const [search, setSearch] = useState("");
@@ -47,9 +48,11 @@ function Dashboard() {
         </div>
         <span>{overview?.shop}</span>
       </header>
-      <main>
-        <h1>Dashboard</h1>
-        <nav>
+      <main className="dashboard">
+        <section className="dashboard-banner" aria-labelledby="dashboard-title">
+          <h1 id="dashboard-title">Dashboard</h1>
+        </section>
+        <nav aria-label="Shop workflows">
           <a href="#/customers">Customers</a>
           <a href="#/inquiries">Rental inquiries</a>
           <a href="#/rental-drafts">Rental drafts</a>

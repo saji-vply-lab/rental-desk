@@ -184,3 +184,117 @@ dl {
   padding: 0.75rem;
   border-left: 3px solid #a42d1b;
 }
+
+:root {
+  --accent: var(--brand-accent, #166657);
+  color: var(--ink, #20332e);
+  background: var(--page-paper, #f4f6f2);
+}
+body {
+  min-height: 100vh;
+  background-image:
+    linear-gradient(rgb(250 249 244 / 96%), rgb(250 249 244 / 96%)),
+    var(--tenant-image, none);
+  background-size: cover;
+  background-position: center;
+}
+header {
+  background: var(--card-paper, white);
+  color: var(--ink, #20332e);
+  border-bottom: 1px solid var(--line, #dce3db);
+  padding-inline: max(1rem, calc((100vw - 59rem) / 2));
+}
+header span {
+  font-size: 0.95rem;
+}
+.brand svg {
+  color: var(--accent);
+}
+.dashboard-banner,
+.management h1 {
+  color: #fffef9;
+  background-color: var(--banner-dark, #183d32);
+  background-image:
+    linear-gradient(
+      90deg,
+      var(--banner-wash, rgba(19, 49, 39, 0.91)),
+      rgba(19, 49, 39, 0.58) 62%,
+      rgba(19, 49, 39, 0.25)
+    ),
+    var(--tenant-image, none);
+  background-position: var(--image-position, center);
+  background-size: cover;
+  border-radius: 0.8rem;
+}
+.dashboard-banner {
+  display: flex;
+  align-items: flex-end;
+  min-height: clamp(9rem, 19vw, 13rem);
+  padding: clamp(1.3rem, 4vw, 2.6rem);
+}
+.dashboard h1,
+.management h1 {
+  font-family: var(--display-font, Georgia, serif);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+.dashboard h1 {
+  margin: 0;
+  font-size: clamp(2.5rem, 6vw, 4rem);
+}
+.management h1 {
+  font-size: clamp(1.85rem, 4vw, 2.7rem);
+  padding: clamp(1rem, 3vw, 1.6rem);
+  margin: 0 0 1.25rem;
+}
+.dashboard > nav {
+  margin: 0.8rem 0 1.4rem;
+}
+.dashboard > nav a,
+.management > nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.45rem 0.8rem;
+  background: var(--card-paper, white);
+  border: 1px solid var(--line, #dce3db);
+  border-radius: 0.45rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.dashboard > nav a:hover,
+.management > nav a:hover {
+  border-color: var(--accent);
+}
+article,
+.stock,
+.management fieldset {
+  background-color: var(--card-paper, white);
+  border-color: var(--line, #dce3db);
+}
+.management input[type="checkbox"] {
+  width: 1.2rem;
+  height: 1.2rem;
+  accent-color: var(--accent);
+}
+.management label:has(> input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+@media (max-width: 540px) {
+  .dashboard > nav,
+  .management > nav {
+    gap: 0.4rem;
+  }
+  .dashboard > nav a,
+  .management > nav a {
+    padding-inline: 0.65rem;
+  }
+}
