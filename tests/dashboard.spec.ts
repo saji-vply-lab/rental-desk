@@ -23,3 +23,15 @@ test("search stock by item name, ID and category", async ({ page }) => {
   await page.getByRole("button", { name: "Clear search" }).click();
   await expect(page.getByRole("listitem")).toHaveCount(3);
 });
+
+test("combine category and text filters", async ({ page }) => {
+  await page.goto("/");
+  const category = page.getByRole("combobox", { name: "Category" });
+  await category.selectOption("Furniture");
+  await expect(page.getByRole("listitem")).toHaveCount(1);
+  await expect(page.getByRole("listitem")).toContainText("Folding chair");
+  await page.getByRole("searchbox").fill("pump");
+  await expect(page.getByRole("status")).toContainText("0 of 3 items");
+  await category.selectOption("");
+  await expect(page.getByRole("listitem")).toContainText("Water pump");
+});
