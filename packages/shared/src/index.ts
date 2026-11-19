@@ -117,6 +117,7 @@ export const inquiryLine = z.object({
 export const inquiryWrite = z
   .object({
     requestId: z.uuid(),
+    revision: z.number().int().positive().optional(),
     customerId: z.number().int().positive(),
     start: z.iso.date(),
     due: z.iso.date(),
@@ -137,5 +138,7 @@ export type InquirySummary = {
   due: string;
 };
 export type InquiryDetails = InquirySummary & {
+  revision: number;
+  customerId: number;
   lines: (InquiryLine & { name: string })[];
 };

@@ -111,6 +111,21 @@ export async function openShop(path: string, demo: boolean) {
           );
         await tx.execute("INSERT INTO migrations VALUES (5)");
       }
+      if (
+        !(await tx.execute("SELECT version FROM migrations WHERE version=6"))
+          .rows.length
+      ) {
+        await tx.executeMultiple(
+          readFileSync(
+            new URL(
+              "../../../database/migrations/0006-document-kind.sql",
+              import.meta.url,
+            ),
+            "utf8",
+          ),
+        );
+        await tx.execute("INSERT INTO migrations VALUES (6)");
+      }
       await tx.commit();
     } finally {
       tx.close();

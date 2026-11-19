@@ -52,6 +52,7 @@ function Dashboard() {
         <nav>
           <a href="#/customers">Customers</a>
           <a href="#/inquiries">Rental inquiries</a>
+          <a href="#/rental-drafts">Rental drafts</a>
         </nav>
         {error ? (
           <p role="alert">
@@ -165,7 +166,7 @@ function App() {
     window.addEventListener("hashchange", change);
     return () => window.removeEventListener("hashchange", change);
   }, []);
-  if (path.startsWith("/inquiries"))
+  if (path.startsWith("/inquiries") || path.startsWith("/rental-drafts"))
     return <Inquiries key={path} path={path} />;
   if (path.startsWith("/customers"))
     return <Customers key={path} path={path} />;

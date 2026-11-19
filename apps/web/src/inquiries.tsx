@@ -1,3 +1,4 @@
+import { ItemPicker } from "./item-picker";
 import { useEffect, useState, type FormEvent } from "react";
 import type {
   Customer,
@@ -8,14 +9,35 @@ import type {
 } from "@rentaldesk/shared";
 import { Pages } from "./inventory";
 import { headers, setOwnerKey } from "./owner-access";
-const base = "#/inquiries";
+const inquiries = {
+  base: "#/inquiries",
+  api: "/api/inquiries",
+  title: "Rental inquiries",
+  noun: "inquiry",
+  prefix: "INQ",
+};
+const drafts = {
+  base: "#/rental-drafts",
+  api: "/api/rental-drafts",
+  title: "Rental drafts",
+  noun: "rental draft",
+  prefix: "DRAFT",
+};
+type Config = typeof inquiries;
 const dateLabel = (date: string) => date.split("-").reverse().join("/");
-function Directory({ rows }: { rows: InquirySummary[] }) {
+function Directory({
+  rows,
+  config,
+}: {
+  rows: InquirySummary[];
+  config: Config;
+}) {
+  const { base, title, noun, prefix } = config;
   const [query, setQuery] = useState(""),
     [order, setOrder] = useState("recent");
   const matches = rows
     .filter((r) =>
-      (r.customer + " INQ-" + r.id)
+      (r.customer + " " + prefix + "-" + r.id)
         .toLowerCase()
         .includes(query.toLowerCase().trim()),
     )
@@ -26,12 +48,12 @@ function Directory({ rows }: { rows: InquirySummary[] }) {
     );
   return (
     <>
-      <h1>Rental inquiries</h1>
+      <h1>{title}</h1>
       <nav>
-        <a href={base + "/new"}>New inquiry</a>
+        <a href={base + "/new"}>New {noun}</a>
       </nav>
       <label>
-        Search inquiries
+        Search by customer or reference
         <input
           type="search"
           value={query}
@@ -55,14 +77,14 @@ function Directory({ rows }: { rows: InquirySummary[] }) {
               {page.map((r) => (
                 <li key={r.id}>
                   <a href={base + "/" + r.id}>
-                    INQ-{r.id} · {r.customer}
+                    {prefix}-{r.id} · {r.customer}
                   </a>
                   <span>{dateLabel(r.start)}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p>No inquiries found.</p>
+            <p>No matching records.</p>
           )
         }
       />
@@ -72,13 +94,21 @@ function Directory({ rows }: { rows: InquirySummary[] }) {
 function Editor({
   customers,
   inventory,
+  config,
+  existing,
 }: {
   customers: Customer[];
   inventory: Inventory;
+  config: Config;
+  existing?: InquiryDetails;
 }) {
-  const [lines, setLines] = useState<(InquiryLine & { key: string })[]>([]),
-    [start, S] = useState(""),
-    [due, D] = useState(""),
+  const { base, api, noun } = config;
+  const [lines, setLines] = useState<(InquiryLine & { key: string })[]>(
+      () =>
+        existing?.lines.map((l) => ({ ...l, key: crypto.randomUUID() })) ?? [],
+    ),
+    [start, S] = useState(existing?.start ?? ""),
+    [due, D] = useState(existing?.due ?? ""),
     [error, E] = useState(""),
     [busy, B] = useState(false),
     [requestId] = useState(() => crypto.randomUUID());
@@ -96,10 +126,17 @@ function Editor({
     B(true);
     E("");
     try {
-      const r = await fetch("/api/inquiries", {
-        method: "POST",
+      const r = await fetch(existing ? api + "/" + existing.id : api, {
+        method: existing ? "PUT" : "POST",
         headers: headers(),
-        body: JSON.stringify({ customerId, start, due, lines, requestId }),
+        body: JSON.stringify({
+          customerId,
+          start,
+          due,
+          lines,
+          requestId,
+          revision: existing?.revision,
+        }),
       });
       const data = await r.json();
       if (!r.ok) throw Error(data.message);
@@ -112,21 +149,27 @@ function Editor({
   }
   return (
     <>
-      <h1>New inquiry</h1>
+      <h1>
+        {existing ? "Edit" : "New"} {noun}
+      </h1>
       {!customers.length ? (
         <p>
-          <a href="#/customers/new">Add a customer</a> to start an inquiry.
+          <a href="#/customers/new">Add a customer</a> to start a {noun}.
         </p>
       ) : !active.length ? (
         <p>
-          <a href="#/inventory/new">Add an active item</a> to start an inquiry.
+          <a href="#/inventory/new">Add an active item</a> to start a {noun}.
         </p>
       ) : (
         <form onSubmit={save}>
           <fieldset disabled={busy}>
             <label>
               Customer
-              <select required name="customer" defaultValue="">
+              <select
+                required
+                name="customer"
+                defaultValue={existing?.customerId ?? ""}
+              >
                 <option value="">Select customer</option>
                 {customers.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -156,24 +199,29 @@ function Editor({
                 />
               </label>
             </div>
+            <ItemPicker
+              items={active}
+              disabled={!start || !due || start > due}
+              onAdd={(item, quantity) =>
+                setLines((previous) => [
+                  ...previous,
+                  {
+                    key: crypto.randomUUID(),
+                    itemId: item.id,
+                    quantity,
+                    startOverride: null,
+                    dueOverride: null,
+                  },
+                ])
+              }
+            />
             {lines.map((l, index) => (
               <fieldset key={l.key}>
                 <legend>Item {index + 1}</legend>
-                <label>
-                  Inventory item
-                  <select
-                    required
-                    value={l.itemId}
-                    onChange={(e) => update(l.key, { itemId: e.target.value })}
-                  >
-                    <option value="">Select item</option>
-                    {active.map((i) => (
-                      <option key={i.id} value={i.id}>
-                        {i.id} · {i.name} · {i.zone} / {i.subzone}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <b>
+                  {inventory.items.find((i) => i.id === l.itemId)?.name} ·{" "}
+                  {l.itemId}
+                </b>
                 <label>
                   Quantity
                   <input
@@ -239,27 +287,9 @@ function Editor({
                 </button>
               </fieldset>
             ))}
-            <button
-              type="button"
-              disabled={!start || !due || start > due}
-              onClick={() =>
-                setLines([
-                  ...lines,
-                  {
-                    key: crypto.randomUUID(),
-                    itemId: "",
-                    quantity: 1,
-                    startOverride: null,
-                    dueOverride: null,
-                  },
-                ])
-              }
-            >
-              Add item line
-            </button>
-            <p>Saving an inquiry does not reserve stock.</p>
+            <p>Saving this {noun} does not reserve stock.</p>
             {error && <p role="alert">{error}</p>}
-            <button>Save inquiry</button> <a href={base}>Cancel</a>
+            <button>Save {noun}</button> <a href={base}>Cancel</a>
           </fieldset>
         </form>
       )}
@@ -267,7 +297,9 @@ function Editor({
   );
 }
 export function Inquiries({ path }: { path: string }) {
-  const id = path.split("/")[2];
+  const config = path.startsWith("/rental-drafts") ? drafts : inquiries;
+  const { base, api, title, noun, prefix } = config;
+  const [, , id, action] = path.split("/");
   const [rows, R] = useState<InquirySummary[]>(),
     [details, T] = useState<InquiryDetails>(),
     [form, F] = useState<{ customers: Customer[]; inventory: Inventory }>(),
@@ -286,17 +318,23 @@ export function Inquiries({ path }: { path: string }) {
       return data;
     }
     async function load() {
-      if (id === "new") {
-        const [customers, inventory] = await Promise.all([
+      if (id === "new" || action === "edit") {
+        const [customers, inventory, record] = await Promise.all([
           get("/api/customers"),
           get("/api/inventory"),
+          action === "edit"
+            ? get(api + "/" + encodeURIComponent(id))
+            : undefined,
         ]);
-        if (alive) F({ customers, inventory });
+        if (alive) {
+          T(record);
+          F({ customers, inventory });
+        }
       } else if (id) {
-        const d = await get("/api/inquiries/" + encodeURIComponent(id));
+        const d = await get(api + "/" + encodeURIComponent(id));
         if (alive) T(d);
       } else {
-        const list = await get("/api/inquiries");
+        const list = await get(api);
         if (alive) R(list);
       }
       if (alive) {
@@ -310,12 +348,12 @@ export function Inquiries({ path }: { path: string }) {
     return () => {
       alive = false;
     };
-  }, [id, attempt]);
+  }, [id, action, api, attempt]);
   return (
     <main className="management">
       <nav>
         <a href="#/">Dashboard</a>
-        <a href={base}>Rental inquiries</a>
+        <a href={base}>{title}</a>
       </nav>
       {error && <p role="alert">{error}</p>}
       {locked ? (
@@ -330,15 +368,18 @@ export function Inquiries({ path }: { path: string }) {
             Owner access key
             <input name="key" type="password" required />
           </label>
-          <button>Open inquiries</button>
+          <button>Open records</button>
         </form>
       ) : form ? (
-        <Editor {...form} />
+        <Editor {...form} config={config} existing={details} />
       ) : rows ? (
-        <Directory rows={rows} />
+        <Directory rows={rows} config={config} />
       ) : details ? (
         <>
-          <h1>Inquiry INQ-{details.id}</h1>
+          <h1>
+            {prefix}-{details.id}
+          </h1>
+          <a href={base + "/" + details.id + "/edit"}>Edit {noun}</a>
           <p>{details.customer} · Unreserved</p>
           <p>
             {dateLabel(details.start)} – {dateLabel(details.due)}
@@ -361,7 +402,7 @@ export function Inquiries({ path }: { path: string }) {
       ) : error ? (
         <button onClick={() => A(attempt + 1)}>Retry</button>
       ) : (
-        <p>Loading inquiries…</p>
+        <p>Loading…</p>
       )}
     </main>
   );

@@ -124,8 +124,8 @@ test("save an unreserved inquiry with an independent line return date", async ({
     .selectOption(String(customer.id));
   await page.getByLabel("Common start date").fill("2027-02-01");
   await page.getByLabel("Common return date").fill("2027-02-03");
-  await page.getByRole("button", { name: "Add item line" }).click();
-  await page.getByLabel("Inventory item").selectOption("ITEM-0001");
+  await page.getByRole("button", { name: "Choose Folding chair" }).click();
+  await page.getByRole("button", { name: "Add to lines" }).click();
   await page.getByLabel("Quantity").fill("100");
   await page.getByLabel("Override return date").check();
   await page.getByLabel("Item return date").fill("2027-02-07");
@@ -136,3 +136,45 @@ test("save an unreserved inquiry with an independent line return date", async ({
   await expect(page.getByText("01/02/2027 – 07/02/2027")).toBeVisible();
   expect(await (await request.get("/api/overview")).json()).toEqual(before);
 });
+
+for (const [section, noun] of [
+  ["Rental inquiries", "inquiry"],
+  ["Rental drafts", "rental draft"],
+]) {
+  test(
+    "browse and edit " + noun + " items across categories and pages",
+    async ({ page }) => {
+      await page.goto("/");
+      await page.getByRole("link", { name: section, exact: true }).click();
+      await page.getByRole("link", { name: "New " + noun }).click();
+      await page.locator('select[name="customer"]').selectOption({ index: 1 });
+      await page.getByLabel("Common start date").fill("2027-03-01");
+      await page.getByLabel("Common return date").fill("2027-03-05");
+      await page.getByLabel("Items per page").selectOption("5");
+      await page.getByRole("button", { name: "Next", exact: true }).click();
+      await expect(
+        page.getByRole("button", { name: "Previous", exact: true }),
+      ).toBeEnabled();
+      const filter = page.getByRole("combobox", { name: "Picker category" });
+      await filter.selectOption("Furniture");
+      await expect(
+        page.getByRole("button", { name: "Previous", exact: true }),
+      ).toBeDisabled();
+      for (const name of ["Banquet table", "Folding chair"]) {
+        await page.getByRole("button", { name: "Choose " + name }).click();
+        await page.getByRole("button", { name: "Add to lines" }).click();
+        await expect(filter).toHaveValue("Furniture");
+      }
+      await filter.selectOption("Tools & Machinery");
+      await page.getByLabel("Find an item").fill("drill");
+      await page.getByRole("button", { name: "Choose Rotary drill" }).click();
+      await page.getByRole("button", { name: "Add to lines" }).click();
+      await page.getByRole("button", { name: "Save " + noun }).click();
+      await page.getByRole("link", { name: "Edit " + noun }).click();
+      await expect(page.getByLabel("Quantity", { exact: true })).toHaveCount(3);
+      await page.getByLabel("Quantity", { exact: true }).first().fill("7");
+      await page.getByRole("button", { name: "Save " + noun }).click();
+      await expect(page.getByText("Quantity 7")).toBeVisible();
+    },
+  );
+}
