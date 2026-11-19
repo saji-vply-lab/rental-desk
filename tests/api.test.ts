@@ -17,7 +17,17 @@ test.each([true, false])("shop survives restart (demo=%s)", async (demo) => {
         expect(response.json().shop).toBe(
           demo ? "Demo Rental Shop" : "Rental Shop",
         );
-        expect(response.json().items).toHaveLength(demo ? 3 : 0);
+        expect(response.json().items).toHaveLength(demo ? 12 : 0);
+        if (demo) {
+          expect((await app.inject("/api/customers")).json()).toHaveLength(3);
+          const inquiries = (await app.inject("/api/inquiries")).json();
+          expect(inquiries).toHaveLength(3);
+          for (const inquiry of inquiries) {
+            expect(
+              (await app.inject("/api/inquiries/" + inquiry.id)).json().lines,
+            ).toHaveLength(2);
+          }
+        }
       } finally {
         await app.close();
       }

@@ -95,6 +95,22 @@ export async function openShop(path: string, demo: boolean) {
         );
         await tx.execute("INSERT INTO migrations VALUES (4)");
       }
+      if (
+        !(await tx.execute("SELECT version FROM migrations WHERE version=5"))
+          .rows.length
+      ) {
+        if (demo)
+          await tx.executeMultiple(
+            readFileSync(
+              new URL(
+                "../../../database/migrations/0005-demo-examples.sql",
+                import.meta.url,
+              ),
+              "utf8",
+            ),
+          );
+        await tx.execute("INSERT INTO migrations VALUES (5)");
+      }
       await tx.commit();
     } finally {
       tx.close();

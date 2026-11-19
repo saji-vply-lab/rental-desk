@@ -19,19 +19,19 @@ test("search stock by item name, ID and category", async ({ page }) => {
     await expect(page.getByRole("listitem")).toContainText("Water pump");
   }
   await search.fill("no such item");
-  await expect(page.getByRole("status")).toContainText("0 of 3 items");
+  await expect(page.getByRole("status")).toContainText("0 of 12 items");
   await page.getByRole("button", { name: "Clear search" }).click();
-  await expect(page.getByRole("listitem")).toHaveCount(3);
+  await expect(page.getByRole("listitem")).toHaveCount(12);
 });
 
 test("combine category and text filters", async ({ page }) => {
   await page.goto("/");
   const category = page.getByRole("combobox", { name: "Category" });
   await category.selectOption("Furniture");
-  await expect(page.getByRole("listitem")).toHaveCount(1);
-  await expect(page.getByRole("listitem")).toContainText("Folding chair");
+  await expect(page.getByRole("listitem")).toHaveCount(2);
+  await expect(page.getByRole("link", { name: "Folding chair" })).toBeVisible();
   await page.getByRole("searchbox").fill("pump");
-  await expect(page.getByRole("status")).toContainText("0 of 3 items");
+  await expect(page.getByRole("status")).toContainText("0 of 12 items");
   await category.selectOption("");
   await expect(page.getByRole("listitem")).toContainText("Water pump");
 });
