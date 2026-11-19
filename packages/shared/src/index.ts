@@ -108,3 +108,34 @@ export type Customer = {
   revision: number;
   phones: string[];
 };
+export const inquiryLine = z.object({
+  itemId: z.string().min(1),
+  quantity: z.number().int().positive().max(1000000000),
+  startOverride: z.iso.date().nullable(),
+  dueOverride: z.iso.date().nullable(),
+});
+export const inquiryWrite = z
+  .object({
+    requestId: z.uuid(),
+    customerId: z.number().int().positive(),
+    start: z.iso.date(),
+    due: z.iso.date(),
+    lines: z.array(inquiryLine).min(1).max(200),
+  })
+  .refine(
+    (v) =>
+      v.start <= v.due &&
+      v.lines.every(
+        (l) => (l.startOverride ?? v.start) <= (l.dueOverride ?? v.due),
+      ),
+  );
+export type InquiryLine = z.infer<typeof inquiryLine>;
+export type InquirySummary = {
+  id: number;
+  customer: string;
+  start: string;
+  due: string;
+};
+export type InquiryDetails = InquirySummary & {
+  lines: (InquiryLine & { name: string })[];
+};

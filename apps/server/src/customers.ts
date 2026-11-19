@@ -1,3 +1,4 @@
+import { ownerAccess } from "./owner-access";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import type { Client } from "@libsql/client";
 import {
@@ -10,20 +11,7 @@ export function customerRoutes(
   client: Client,
   demo: boolean,
 ) {
-  const openDemo =
-    demo &&
-    !process.env.RENTALDESK_OWNER_KEY &&
-    !process.env.RENTALDESK_INVENTORY_STAFF_KEY;
-  async function authorize(req: FastifyRequest, reply: FastifyReply) {
-    const owner = process.env.RENTALDESK_OWNER_KEY;
-    if (
-      !openDemo &&
-      (!owner || req.headers.authorization !== "Bearer " + owner)
-    )
-      return reply.code(403).send({
-        message: "Enter the owner access key to open customer records.",
-      });
-  }
+  const authorize = ownerAccess(demo);
   app.get("/api/customers", { preHandler: authorize }, async () => {
     const rows = (
       await client.execute(

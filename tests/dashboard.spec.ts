@@ -102,3 +102,37 @@ test("create, find and edit a customer and check duplicate phone numbers", async
     page.getByRole("heading", { name: "Demo customer" }),
   ).toBeVisible();
 });
+
+test("save an unreserved inquiry with an independent line return date", async ({
+  page,
+  request,
+}) => {
+  const seed = await request.post("/api/customers", {
+    data: {
+      name: "Inquiry sample",
+      address: "Demo road",
+      phones: ["5557778888"],
+    },
+  });
+  const customer = await seed.json();
+  const before = await (await request.get("/api/overview")).json();
+  await page.goto("/");
+  await page.getByRole("link", { name: "Rental inquiries" }).click();
+  await page.getByRole("link", { name: "New inquiry" }).click();
+  await page
+    .locator('select[name="customer"]')
+    .selectOption(String(customer.id));
+  await page.getByLabel("Common start date").fill("2027-02-01");
+  await page.getByLabel("Common return date").fill("2027-02-03");
+  await page.getByRole("button", { name: "Add item line" }).click();
+  await page.getByLabel("Inventory item").selectOption("ITEM-0001");
+  await page.getByLabel("Quantity").fill("100");
+  await page.getByLabel("Override return date").check();
+  await page.getByLabel("Item return date").fill("2027-02-07");
+  await page.getByLabel("Common return date").fill("2027-02-04");
+  await page.getByRole("button", { name: "Save inquiry" }).click();
+  await expect(page.getByText("Quantity 100")).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("01/02/2027 – 07/02/2027")).toBeVisible();
+  expect(await (await request.get("/api/overview")).json()).toEqual(before);
+});

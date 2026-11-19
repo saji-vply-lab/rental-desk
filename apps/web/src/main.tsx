@@ -1,3 +1,4 @@
+import { Inquiries } from "./inquiries";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Boxes, Layers, Wrench, Store } from "lucide-react";
@@ -50,6 +51,7 @@ function Dashboard() {
         <h1>Dashboard</h1>
         <nav>
           <a href="#/customers">Customers</a>
+          <a href="#/inquiries">Rental inquiries</a>
         </nav>
         {error ? (
           <p role="alert">
@@ -163,6 +165,8 @@ function App() {
     window.addEventListener("hashchange", change);
     return () => window.removeEventListener("hashchange", change);
   }, []);
+  if (path.startsWith("/inquiries"))
+    return <Inquiries key={path} path={path} />;
   if (path.startsWith("/customers"))
     return <Customers key={path} path={path} />;
   return path.startsWith("/inventory") ? (

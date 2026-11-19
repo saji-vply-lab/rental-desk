@@ -1,12 +1,8 @@
+import { headers, setOwnerKey } from "./owner-access";
 import { useState, useEffect, type FormEvent } from "react";
 import { normalizePhone, type Customer } from "@rentaldesk/shared";
 import { Pages } from "./inventory";
 const base = "#/customers";
-let ownerKey = "";
-const headers = () => ({
-  "Content-Type": "application/json",
-  Authorization: "Bearer " + ownerKey,
-});
 function Directory({ customers }: { customers: Customer[] }) {
   const [search, S] = useState(""),
     [order, O] = useState("name");
@@ -229,7 +225,7 @@ export function Customers({ path }: { path: string }) {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            ownerKey = String(new FormData(e.currentTarget).get("key"));
+            setOwnerKey(String(new FormData(e.currentTarget).get("key")));
             A(attempt + 1);
           }}
         >
