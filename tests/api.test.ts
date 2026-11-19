@@ -75,6 +75,9 @@ test("production denies unauthenticated inventory changes", async () => {
   const dir = await mkdtemp(join(tmpdir(), "rentaldesk-auth-"));
   const app = await createApp(join(dir, "test.db"), false);
   try {
+    expect((await app.inject("/api/dashboard/operations")).statusCode).toBe(
+      403,
+    );
     expect(
       (
         await app.inject({
@@ -129,6 +132,9 @@ test("book against expected returns, block conflicting issues, and reconcile ret
       payload: { action, revision, ...extra },
     });
   try {
+    const dashboard = async () =>
+      (await app.inject("/api/dashboard/operations")).json();
+    const baseline = (await dashboard()).available;
     const first = await draft(0, 1, 4);
     expect((await act(first, "Issue", 1)).json().status).toBe("Issued");
     const conflict = await draft(0, 1, 1);
@@ -141,6 +147,12 @@ test("book against expected returns, block conflicting issues, and reconcile ret
     expect(
       (await app.inject("/api/rental-drafts/" + later)).json().atRisk,
     ).toBe(1);
+    const snapshot = await dashboard();
+    expect(snapshot.pending).toMatchObject([
+      { rentalId: first, outstanding: 4, due: date(1) },
+    ]);
+    expect(snapshot.bookings).toMatchObject([{ rentalId: later, atRisk: 1 }]);
+    expect(snapshot.available).toBe(baseline - 4);
     expect((await act(later, "Issue", 2)).statusCode).toBe(409);
     const ret = (n: number, revision: number) =>
       act(first, "Return", revision, {
@@ -150,8 +162,16 @@ test("book against expected returns, block conflicting issues, and reconcile ret
       });
     expect((await ret(5, 2)).statusCode).toBe(409);
     expect((await ret(2, 2)).json().status).toBe("Partially returned");
+    expect((await dashboard()).pending[0].outstanding).toBe(2);
     expect((await ret(2, 2)).statusCode).toBe(409);
     expect((await ret(2, 3)).json().status).toBe("Completed");
+    const settled = await dashboard();
+    expect(settled.pending).toHaveLength(0);
+    expect(settled.available).toBe(baseline);
+    expect(settled.bookings[0].atRisk).toBe(0);
+    expect(settled.activity).toContainEqual(
+      expect.objectContaining({ action: "Return", dayUnits: 4, monthUnits: 4 }),
+    );
     expect((await act(later, "Issue", 2)).json().status).toBe("Issued");
     expect((await act(conflict, "Cancel", 1)).json().status).toBe("Cancelled");
   } finally {

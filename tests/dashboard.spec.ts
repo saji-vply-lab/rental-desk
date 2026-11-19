@@ -215,3 +215,60 @@ test("convert an inquiry, book, issue and return each line", async ({
   await page.reload();
   await expect(page.getByText("Quantity 4")).toContainText("0 outstanding");
 });
+
+test("dashboard filters pending lines and links critical returns to rentals", async ({
+  page,
+}) => {
+  const line = {
+    rentalId: 10,
+    itemId: "ITEM-0001",
+    name: "Folding chair",
+    customer: "Demo Hall",
+    outstanding: 2,
+  };
+  await page.route("**/api/dashboard/operations", (route) =>
+    route.fulfill({
+      json: {
+        today: "2026-11-19",
+        available: 7,
+        pending: [
+          { ...line, position: 0, due: "2026-11-18" },
+          { ...line, position: 1, due: "2026-11-19", outstanding: 1 },
+        ],
+        bookings: [
+          {
+            rentalId: 11,
+            position: 0,
+            itemId: line.itemId,
+            name: line.name,
+            customer: "Demo Club",
+            start: "2026-11-21",
+            due: "2026-11-22",
+            quantity: 3,
+            atRisk: 1,
+          },
+        ],
+        activity: [],
+      },
+    }),
+  );
+  await page.goto("/");
+  const returns = page.getByRole("region", { name: "Outstanding returns" });
+  await returns.getByRole("combobox", { name: "Show" }).selectOption("Overdue");
+  await expect(returns.getByRole("listitem")).toHaveCount(1);
+  await expect(returns.getByRole("listitem")).toContainText("2 outstanding");
+  await returns
+    .getByRole("combobox", { name: "Show" })
+    .selectOption("Due today");
+  await expect(returns.getByRole("listitem")).toContainText("1 outstanding");
+  const critical = page.getByRole("region", { name: "Critical returns" });
+  await critical.locator("summary").click();
+  await expect(
+    critical.getByRole("link", { name: "RNT-10 · Demo Hall" }).first(),
+  ).toHaveAttribute("href", "#/rental-drafts/10");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});

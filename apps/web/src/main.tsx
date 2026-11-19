@@ -1,3 +1,4 @@
+import { DashboardOperations } from "./dashboard-operations";
 import { Inquiries } from "./inquiries";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -86,6 +87,7 @@ function Dashboard() {
                 );
               })}
             </section>
+            <DashboardOperations />
             <section className="stock">
               <h2>Stock overview</h2>
               <nav>

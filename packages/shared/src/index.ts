@@ -169,3 +169,36 @@ export const rentalAction = z.object({
   quantity: z.number().int().positive().optional(),
   condition: z.enum(["Good", "Damaged", "Missing"]).optional(),
 });
+export type PendingReturn = {
+  rentalId: number;
+  position: number;
+  itemId: string;
+  name: string;
+  customer: string;
+  due: string;
+  outstanding: number;
+};
+export type DashboardBooking = {
+  rentalId: number;
+  position: number;
+  itemId: string;
+  name: string;
+  customer: string;
+  start: string;
+  due: string;
+  quantity: number;
+  atRisk: number;
+};
+export type OperationsDashboard = {
+  today: string;
+  pending: PendingReturn[];
+  bookings: DashboardBooking[];
+  available: number;
+  activity: {
+    action: string;
+    monthCount: number;
+    dayCount: number;
+    monthUnits: number;
+    dayUnits: number;
+  }[];
+};
