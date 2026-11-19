@@ -1,3 +1,6 @@
+import { randomUUID } from "node:crypto";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "tests",
@@ -11,6 +14,12 @@ export default defineConfig({
   },
   webServer: {
     command: "pnpm dev",
+    env: {
+      DATABASE_PATH: join(
+        tmpdir(),
+        "rentaldesk-e2e-" + randomUUID() + ".sqlite",
+      ),
+    },
     url: "http://127.0.0.1:5173/api/health",
     reuseExistingServer: false,
   },

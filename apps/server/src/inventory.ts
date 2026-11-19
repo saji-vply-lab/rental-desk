@@ -9,7 +9,10 @@ export function inventoryRoutes(
   client: Client,
   demo: boolean,
 ) {
-  const demoAccess = demo && !process.env.RENTALDESK_OWNER_KEY;
+  const demoAccess =
+    demo &&
+    !process.env.RENTALDESK_OWNER_KEY &&
+    !process.env.RENTALDESK_INVENTORY_STAFF_KEY;
   app.get("/api/inventory", async () => ({
     items: (
       await client.execute(
