@@ -1,0 +1,15 @@
+{
+  "name": "RentalDesk",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:24-bookworm",
+  "postCreateCommand": "corepack enable && corepack prepare pnpm@10.32.1 --activate && pnpm install --frozen-lockfile",
+  "forwardPorts": [5173],
+  "portsAttributes": {
+    "5173": {
+      "label": "RentalDesk",
+      "protocol": "http",
+      "onAutoForward": "notify"
+    },
+    "3001": { "onAutoForward": "ignore" }
+  },
+  "otherPortsAttributes": { "onAutoForward": "ignore" }
+}

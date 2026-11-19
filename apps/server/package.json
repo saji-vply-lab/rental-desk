@@ -1,0 +1,12 @@
+{
+  "name": "@rentaldesk/server",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "fastify": "latest",
+    "@fastify/static": "latest",
+    "drizzle-orm": "latest",
+    "@libsql/client": "latest",
+    "@rentaldesk/shared": "workspace:*"
+  }
+}

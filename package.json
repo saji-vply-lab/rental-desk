@@ -1,0 +1,30 @@
+{
+  "name": "rentaldesk",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.32.1",
+  "scripts": {
+    "dev": "concurrently -k \"tsx watch apps/server/src/main.ts\" \"vite apps/web --config apps/web/vite.config.ts\"",
+    "build": "tsc --noEmit && vite build apps/web --config apps/web/vite.config.ts",
+    "start": "tsx apps/server/src/production.ts",
+    "test": "vitest run tests/api.test.ts",
+    "e2e": "playwright test",
+    "check": "tsc --noEmit && eslint . && prettier --check ."
+  },
+  "devDependencies": {
+    "@playwright/test": "latest",
+    "@tailwindcss/vite": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "concurrently": "latest",
+    "eslint": "latest",
+    "prettier": "latest",
+    "tailwindcss": "latest",
+    "tsx": "latest",
+    "typescript": "5.9.3",
+    "typescript-eslint": "latest",
+    "vite": "latest",
+    "vitest": "latest"
+  }
+}
