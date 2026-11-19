@@ -226,6 +226,7 @@ function ItemForm({
           <label>
             Category
             <select
+              aria-label="Category"
               name="category"
               required
               defaultValue={item?.category || ""}
