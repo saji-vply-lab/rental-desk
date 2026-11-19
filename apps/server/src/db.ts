@@ -65,6 +65,21 @@ export async function openShop(path: string, demo: boolean) {
         );
         await tx.execute("INSERT INTO migrations VALUES (2)");
       }
+      if (
+        !(await tx.execute("SELECT version FROM migrations WHERE version=3"))
+          .rows.length
+      ) {
+        await tx.executeMultiple(
+          readFileSync(
+            new URL(
+              "../../../database/migrations/0003-customers.sql",
+              import.meta.url,
+            ),
+            "utf8",
+          ),
+        );
+        await tx.execute("INSERT INTO migrations VALUES (3)");
+      }
       await tx.commit();
     } finally {
       tx.close();

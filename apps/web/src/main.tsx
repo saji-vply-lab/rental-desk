@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { Boxes, Layers, Wrench, Store } from "lucide-react";
 import { overviewSchema, type Overview } from "@rentaldesk/shared";
 import "./style.css";
+import { Customers } from "./customers";
 import { InventoryScreen } from "./inventory";
 declare const __BRAND__: { label: string; accent: string };
 document.documentElement.style.setProperty("--accent", __BRAND__.accent);
@@ -47,6 +48,9 @@ function Dashboard() {
       </header>
       <main>
         <h1>Dashboard</h1>
+        <nav>
+          <a href="#/customers">Customers</a>
+        </nav>
         {error ? (
           <p role="alert">
             Couldn’t load inventory.{" "}
@@ -159,6 +163,8 @@ function App() {
     window.addEventListener("hashchange", change);
     return () => window.removeEventListener("hashchange", change);
   }, []);
+  if (path.startsWith("/customers"))
+    return <Customers key={path} path={path} />;
   return path.startsWith("/inventory") ? (
     <InventoryScreen key={path} path={path} />
   ) : (

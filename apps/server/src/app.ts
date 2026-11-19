@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import { openShop } from "./db";
 import { overviewSchema } from "@rentaldesk/shared";
+import { customerRoutes } from "./customers";
 import { inventoryRoutes } from "./inventory";
 export async function createApp(path: string, demo: boolean) {
   const shop = await openShop(path, demo);
@@ -13,6 +14,7 @@ export async function createApp(path: string, demo: boolean) {
   app.get("/api/overview", async () =>
     overviewSchema.parse(await shop.overview()),
   );
+  customerRoutes(app, shop.client, demo);
   inventoryRoutes(app, shop.client, demo);
   return app;
 }

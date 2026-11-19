@@ -73,3 +73,32 @@ test("navigate through inventory management and record a repair", async ({
     await page.getByRole("link", { name: "Test drill" }).click();
   }
 });
+
+test("create, find and edit a customer and check duplicate phone numbers", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: "Customers" }).click();
+  const add = async (name: string, phone: string) => {
+    await page.getByRole("link", { name: "Add customer" }).click();
+    await page.getByLabel("Customer name").fill(name);
+    await page.getByLabel("Address").fill("Demo street");
+    await page.getByLabel("Phone 1").fill(phone);
+    await page.getByRole("button", { name: "Save customer" }).click();
+  };
+  await add("Demo customer", "9876543210");
+  await page.getByRole("link", { name: "Edit customer" }).click();
+  await page.getByRole("button", { name: "Add phone number" }).click();
+  await page.getByLabel("Phone 2").fill("9995550001");
+  await page.getByRole("button", { name: "Save customer" }).click();
+  await expect(page.getByText("9995550001")).toBeVisible();
+  await page.getByRole("link", { name: "Customers", exact: true }).click();
+  await page.getByRole("searchbox").fill("5550001");
+  await expect(page.getByRole("link", { name: "Demo customer" })).toBeVisible();
+  await add("Another demo", "+91 98765 43210");
+  await expect(page.getByRole("alert")).toContainText("existing customer");
+  await page.getByRole("link", { name: "Demo customer" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Demo customer" }),
+  ).toBeVisible();
+});

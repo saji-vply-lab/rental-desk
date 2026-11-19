@@ -45,7 +45,7 @@ function Field({
     </label>
   );
 }
-function Pages<T>({
+export function Pages<T>({
   rows,
   render,
 }: {

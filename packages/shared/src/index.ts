@@ -78,3 +78,33 @@ export type Inventory = {
   categories: Category[];
   demoAccess: boolean;
 };
+export function normalizePhone(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  return digits.length === 12 && digits.startsWith("91")
+    ? digits.slice(2)
+    : digits;
+}
+export const customerWrite = z.object({
+  name: z.string().trim().min(1).max(160),
+  address: z.string().trim().min(1).max(1000),
+  phones: z
+    .array(
+      z
+        .string()
+        .trim()
+        .max(32)
+        .regex(/^\+?[\d ()-]+$/)
+        .refine((p) => /^\d{7,15}$/.test(p.replace(/\D/g, ""))),
+    )
+    .min(1)
+    .max(10),
+  revision: z.number().int().positive().optional(),
+  allowSharedPhone: z.boolean().optional(),
+});
+export type Customer = {
+  id: number;
+  name: string;
+  address: string;
+  revision: number;
+  phones: string[];
+};
