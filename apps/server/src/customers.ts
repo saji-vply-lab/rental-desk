@@ -20,11 +20,9 @@ export function customerRoutes(
       !openDemo &&
       (!owner || req.headers.authorization !== "Bearer " + owner)
     )
-      return reply
-        .code(403)
-        .send({
-          message: "Enter the owner access key to open customer records.",
-        });
+      return reply.code(403).send({
+        message: "Enter the owner access key to open customer records.",
+      });
   }
   app.get("/api/customers", { preHandler: authorize }, async () => {
     const rows = (
@@ -50,12 +48,10 @@ export function customerRoutes(
   async function save(req: FastifyRequest, reply: FastifyReply, id?: number) {
     const parsed = customerWrite.safeParse(req.body);
     if (!parsed.success)
-      return reply
-        .code(400)
-        .send({
-          message:
-            "Enter a name, address and 1–10 valid phone numbers (7–15 digits each).",
-        });
+      return reply.code(400).send({
+        message:
+          "Enter a name, address and 1–10 valid phone numbers (7–15 digits each).",
+      });
     const { name, address, phones, revision, allowSharedPhone } = parsed.data;
     const numbers = phones.map(normalizePhone);
     if (new Set(numbers).size !== numbers.length)
@@ -74,12 +70,10 @@ export function customerRoutes(
         })
       ).rows;
       if (duplicates.length && !allowSharedPhone)
-        return reply
-          .code(409)
-          .send({
-            message: "An existing customer uses this phone number.",
-            duplicates,
-          });
+        return reply.code(409).send({
+          message: "An existing customer uses this phone number.",
+          duplicates,
+        });
       if (id !== undefined) {
         const changed = await tx.execute({
           sql: "UPDATE customers SET name=?,address=?,revision=revision+1 WHERE id=? AND revision=?",
