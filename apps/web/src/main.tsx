@@ -5,7 +5,7 @@ import { Boxes, Layers, Wrench, Store } from "lucide-react";
 import { overviewSchema, type Overview } from "@rentaldesk/shared";
 import "./style.css";
 import { Customers } from "./customers";
-import { InventoryScreen } from "./inventory";
+import { InventoryScreen, Pages } from "./inventory";
 declare const __BRAND__: { label: string; accent: string };
 document.documentElement.style.setProperty("--accent", __BRAND__.accent);
 function Dashboard() {
@@ -126,28 +126,41 @@ function Dashboard() {
               {rows.length === 0 ? (
                 <p>No inventory items yet.</p>
               ) : (
-                <ul>
-                  {matches.map((i) => (
-                    <li key={i.id}>
-                      <div>
-                        <a
-                          href={"#/inventory/items/" + encodeURIComponent(i.id)}
-                        >
-                          {i.name}
-                        </a>
-                        <small>
-                          {i.id} · {i.category}
-                        </small>
-                      </div>
-                      <div>
-                        {i.zone} · {i.subzone}
-                        <small>
-                          {i.owned} owned · {i.unusable} unusable
-                        </small>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                <Pages
+                  resetKey={JSON.stringify([category, query])}
+                  rows={matches}
+                  render={(page) =>
+                    page.length ? (
+                      <ul>
+                        {page.map((i) => (
+                          <li key={i.id}>
+                            <div>
+                              <a
+                                href={
+                                  "#/inventory/items/" +
+                                  encodeURIComponent(i.id)
+                                }
+                              >
+                                {i.name}
+                              </a>
+                              <small>
+                                {i.id} · {i.category}
+                              </small>
+                            </div>
+                            <div>
+                              {i.zone} · {i.subzone}
+                              <small>
+                                {i.owned} owned · {i.unusable} unusable
+                              </small>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p>No matching items.</p>
+                    )
+                  }
+                />
               )}
             </section>
           </>

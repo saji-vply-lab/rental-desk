@@ -46,14 +46,21 @@ function Field({
   );
 }
 export function Pages<T>({
+  resetKey,
   rows,
   render,
 }: {
+  resetKey?: string;
   rows: T[];
   render: (page: T[]) => ReactNode;
 }) {
   const [offset, setOffset] = useState(0),
     [size, setSize] = useState(10);
+  const [previousKey, setPreviousKey] = useState(resetKey);
+  if (previousKey !== resetKey) {
+    setPreviousKey(resetKey);
+    setOffset(0);
+  }
   const last = Math.max(0, Math.ceil(rows.length / size) - 1),
     page = Math.min(last, offset);
   return (

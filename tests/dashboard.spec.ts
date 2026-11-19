@@ -10,6 +10,24 @@ test("phone dashboard shows seeded stock", async ({ page }) => {
   ).toBe(true);
 });
 
+test("page dashboard stock and filter the full catalog", async ({ page }) => {
+  await page.goto("/");
+  const list = page.getByRole("listitem");
+  const totals = page.getByRole("region", { name: "Inventory totals" });
+  await expect(list).toHaveCount(10);
+  const summary = await totals.innerText();
+  await page.getByRole("button", { name: "Next" }).click();
+  await expect(list).toHaveCount(2);
+  await expect(page.getByRole("button", { name: "Next" })).toBeDisabled();
+  await page.getByRole("searchbox").fill("Folding chair");
+  await expect(list).toHaveCount(1);
+  await page.getByRole("button", { name: "Clear search" }).click();
+  await expect(page.getByRole("button", { name: "Previous" })).toBeDisabled();
+  await page.getByLabel("Per page").selectOption("25");
+  await expect(list).toHaveCount(12);
+  expect(await totals.innerText()).toBe(summary);
+});
+
 test("search stock by item name, ID and category", async ({ page }) => {
   await page.goto("/");
   const search = page.getByRole("searchbox", { name: "Search inventory" });
@@ -21,7 +39,7 @@ test("search stock by item name, ID and category", async ({ page }) => {
   await search.fill("no such item");
   await expect(page.getByRole("status")).toContainText("0 of 12 items");
   await page.getByRole("button", { name: "Clear search" }).click();
-  await expect(page.getByRole("listitem")).toHaveCount(12);
+  await expect(page.getByRole("listitem")).toHaveCount(10);
 });
 
 test("combine category and text filters", async ({ page }) => {
