@@ -13,7 +13,7 @@ export function inquiryRoutes(
     ["/api/rental-drafts", "rental-draft"],
   ]) {
     const summary =
-      "SELECT EXISTS(SELECT 1 FROM rental_risk WHERE rental_id=i.id) AS atRisk,i.status,i.issued_at AS issuedAt,i.id,i.start,i.due,i.revision,i.customer_id AS customerId,COALESCE(i.customer_snapshot,c.name) AS customer FROM inquiries i JOIN customers c ON c.id=i.customer_id";
+      "SELECT COALESCE((SELECT closed FROM rental_settlement WHERE id=i.id),0) AS closed,EXISTS(SELECT 1 FROM rental_risk WHERE rental_id=i.id) AS atRisk,i.status,i.issued_at AS issuedAt,i.id,i.start,i.due,i.revision,i.customer_id AS customerId,COALESCE(i.customer_snapshot,c.name) AS customer FROM inquiries i JOIN customers c ON c.id=i.customer_id";
     app.get(
       path,
       options,

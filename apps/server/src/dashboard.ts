@@ -7,6 +7,17 @@ export function dashboardRoutes(
   demo: boolean,
 ) {
   app.get(
+    "/api/dashboard/history",
+    { preHandler: ownerAccess(demo) },
+    async () => ({
+      returns: (
+        await client.execute(
+          `SELECT e.id,e.rental_id AS rentalId,i.customer_snapshot AS customer,l.item_name AS item,e.quantity,e.condition,e.remaining,e.created FROM rental_events e JOIN inquiries i ON i.id=e.rental_id JOIN inquiry_lines l ON l.inquiry_id=i.id AND l.position=e.position WHERE e.action='Return' ORDER BY e.id DESC`,
+        )
+      ).rows,
+    }),
+  );
+  app.get(
     "/api/dashboard/operations",
     { preHandler: ownerAccess(demo) },
     async () => {
@@ -59,7 +70,13 @@ export function dashboardRoutes(
           await tx.execute(`WITH balances AS (SELECT i.customer_id,b.total-COALESCE((SELECT SUM(amount) FROM billing_entries e WHERE e.rental_id=i.id AND e.method<>''),0) AS balance FROM bills b JOIN inquiries i ON b.rental_id=i.id)
           SELECT c.id,c.name,SUM(b.balance) AS balance FROM balances b JOIN customers c ON c.id=b.customer_id GROUP BY c.id HAVING SUM(b.balance)>0 ORDER BY balance DESC,c.id`)
         ).rows;
+        const settlements = (
+          await tx.execute(
+            "SELECT i.id,i.customer_snapshot AS customer,CASE WHEN s.status='Cancelled' THEN -s.paid ELSE s.total-s.paid END AS balance FROM rental_settlement s JOIN inquiries i ON i.id=s.id WHERE s.closed=0 AND s.status IN ('Completed','Cancelled') ORDER BY i.id",
+          )
+        ).rows;
         return {
+          settlements,
           today,
           pending,
           bookings,

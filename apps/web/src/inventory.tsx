@@ -119,6 +119,7 @@ function Catalog({ data }: { data: Inventory }) {
   return (
     <>
       <h1>Inventory</h1>
+      <a href="#/inventory/overview">Stock overview and totals</a>
       <nav>
         <a href={base + "/new"}>Add item</a>
         <a href={base + "/categories"}>Manage categories</a>

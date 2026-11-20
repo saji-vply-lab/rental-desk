@@ -64,6 +64,10 @@ export async function buildReceipt(
     ];
     if (event.billing_snapshot) {
       const snap = JSON.parse(String(event.billing_snapshot));
+      if (snap.discount)
+        doc.lines.push("Checkout discount: " + money(snap.discount));
+      if (snap.collected)
+        doc.lines.push("Collected on return: " + money(snap.collected));
       doc.lines.push(
         "Rental charge for this batch: " + money(snap.base),
         "Late fee for this batch: " + money(snap.late),
@@ -120,6 +124,15 @@ export async function buildReceipt(
   if (kind === "booking" || kind === "issue") {
     total = planned;
     doc.lines.push("Estimated rental charges: " + money(total));
+    if (kind === "issue" && b.status === "Issued") {
+      for (const e of b.entries.filter((e) => !e.method && e.amount))
+        doc.lines.push(e.kind + ": " + money(e.amount));
+      doc.lines.push(
+        "Agreed issue total: " + money(b.total),
+        "Net paid: " + money(b.paid),
+        "Balance at issue: " + money(b.balance),
+      );
+    }
   } else {
     doc.lines.push(
       "Rental charges: " + money(b.base),

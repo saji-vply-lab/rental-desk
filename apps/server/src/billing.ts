@@ -5,6 +5,7 @@ import {
   billingRequest,
   type Bill,
   type BillingEntry,
+  type BillingCommand,
 } from "@rentaldesk/shared";
 import { ownerAccess } from "./owner-access";
 function fail(message: string, statusCode = 409): never {
@@ -173,162 +174,14 @@ export function billingRoutes(
         id = Number(req.params.id);
       const tx = await client.transaction("write");
       try {
-        const bill = await readBill(tx, id);
-        if (
-          (
-            await tx.execute({
-              sql: "SELECT 1 FROM billing_entries WHERE rental_id=? AND request_id=?",
-              args: [id, requestId],
-            })
-          ).rows.length
-        )
-          return bill;
-        if (bill.revision !== revision)
-          fail("The rental changed. Refresh billing before saving.");
-        let kind: string = command.action,
-          amount = 0,
-          method = "",
-          reference = "",
-          note = "",
-          date = bill.today,
-          reversedId: number | null = null,
-          percent: number | null = null;
-        switch (command.action) {
-          case "Payment":
-            if (
-              bill.status === "Draft" ||
-              (bill.status === "Cancelled" && command.kind !== "Refund")
-            )
-              fail("Payments require a confirmed booking or issued rental.");
-            if (command.date > bill.today)
-              fail("Payment date cannot be in the future.");
-            kind = command.kind;
-            amount = kind === "Refund" ? -command.amount : command.amount;
-            method = command.method;
-            reference = command.reference;
-            note = command.note;
-            date = command.date;
-            break;
-          case "Adjustment": {
-            if (
-              bill.finalized ||
-              !["Issued", "Partially returned", "Completed"].includes(
-                bill.status,
-              )
-            )
-              fail("Adjustments require an issued rental with an open bill.");
-            kind = command.kind;
-            note = command.note;
-            amount = command.amount;
-            if (command.percent) {
-              if (kind !== "Discount" || amount > 10000)
-                fail("Percentage must be a discount between 0 and 100%.");
-              percent = amount;
-              amount = Math.round(safe(bill.base * percent) / 10000);
-            }
-            if (
-              ["Discount", "Late fee waiver", "Negotiated adjustment"].includes(
-                kind,
-              )
-            )
-              amount = -amount;
-            if (
-              kind === "Late fee waiver" &&
-              -amount >
-                bill.late +
-                  bill.entries
-                    .filter((e) => e.kind === "Late fee waiver")
-                    .reduce((n, e) => n + e.amount, 0)
-            )
-              fail("Waiver exceeds the remaining late fee.");
-            if (bill.total + amount < 0) fail("Discount exceeds the bill.");
-            break;
-          }
-          case "Reverse": {
-            const original = bill.entries.find((e) => e.id === command.entryId);
-            if (
-              !original ||
-              original.reversedId !== null ||
-              bill.entries.some((e) => e.reversedId === original.id) ||
-              (!original.method && (!original.amount || bill.finalized))
-            )
-              fail("This entry cannot be reversed.");
-            kind = original.kind;
-            amount = -original.amount;
-            method = original.method;
-            reference = original.reference;
-            reversedId = original.id;
-            note = command.note;
-            if (!method && bill.total + amount < 0)
-              fail("Reverse related discounts first.");
-            break;
-          }
-          case "Policy":
-            if (bill.finalized || bill.status === "Cancelled")
-              fail("Cannot change this bill.");
-            note =
-              command.note +
-              " · " +
-              bill.rate +
-              " → " +
-              command.rate +
-              " paise per unit/day, grace " +
-              bill.grace +
-              " → " +
-              command.grace +
-              " days";
-            await tx.execute({
-              sql: "UPDATE inquiries SET late_rate=?,grace_days=? WHERE id=?",
-              args: [command.rate, command.grace, id],
-            });
-            break;
-          case "Finalize":
-            if (bill.finalized || bill.status !== "Completed")
-              fail("Return all items before finalizing.");
-            await tx.execute({
-              sql: "INSERT INTO bills(rental_id,total,snapshot) VALUES(?,?,?)",
-              args: [
-                id,
-                bill.total,
-                JSON.stringify({
-                  lines: bill.lines,
-                  base: bill.base,
-                  late: bill.late,
-                  total: bill.total,
-                }),
-              ],
-            });
-            break;
-        }
-        if (method && bill.paid + amount < 0)
-          fail("Refund or reversal exceeds net payments received.");
-        const inserted = await tx.execute({
-          sql: "INSERT INTO billing_entries(rental_id,request_id,kind,amount,method,reference,note,effective_date,reversed_id,percent_bps,actor) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-          args: [
-            id,
-            requestId,
-            kind,
-            amount,
-            method,
-            reference,
-            note,
-            date,
-            reversedId,
-            percent,
-            demo ? "Demo owner" : "Owner",
-          ],
-        });
-        await tx.execute({
-          sql: "UPDATE inquiries SET revision=revision+1 WHERE id=?",
-          args: [id],
-        });
-        const result = await readBill(tx, id);
-        if (method || command.action === "Finalize")
-          await saveReceipt(
-            tx,
-            result,
-            method ? "payment-" + inserted.lastInsertRowid : "final",
-          );
+        const result = await applyBilling(
+          tx,
+          id,
+          requestId,
+          revision,
+          command,
+          demo,
+        );
         await tx.commit();
         return result;
       } finally {
@@ -336,4 +189,168 @@ export function billingRoutes(
       }
     },
   );
+}
+
+export async function applyBilling(
+  tx: Transaction,
+  id: number,
+  requestId: string,
+  revision: number,
+  command: BillingCommand,
+  demo: boolean,
+) {
+  const bill = await readBill(tx, id);
+  if (
+    (
+      await tx.execute({
+        sql: "SELECT 1 FROM billing_entries WHERE rental_id=? AND request_id=?",
+        args: [id, requestId],
+      })
+    ).rows.length
+  )
+    return bill;
+  if (bill.revision !== revision)
+    fail("The rental changed. Refresh billing before saving.");
+  let kind: string = command.action,
+    amount = 0,
+    method = "",
+    reference = "",
+    note = "",
+    date = bill.today,
+    reversedId: number | null = null,
+    percent: number | null = null;
+  switch (command.action) {
+    case "Payment":
+      if (
+        bill.status === "Draft" ||
+        (bill.status === "Cancelled" && command.kind !== "Refund")
+      )
+        fail("Payments require a confirmed booking or issued rental.");
+      if (command.date > bill.today)
+        fail("Payment date cannot be in the future.");
+      kind = command.kind;
+      amount = kind === "Refund" ? -command.amount : command.amount;
+      method = command.method;
+      reference = command.reference;
+      note = command.note;
+      date = command.date;
+      break;
+    case "Adjustment": {
+      if (
+        bill.finalized ||
+        !["Issued", "Partially returned", "Completed"].includes(bill.status)
+      )
+        fail("Adjustments require an issued rental with an open bill.");
+      kind = command.kind;
+      note = command.note;
+      amount = command.amount;
+      if (command.percent) {
+        if (kind !== "Discount" || amount > 10000)
+          fail("Percentage must be a discount between 0 and 100%.");
+        percent = amount;
+        amount = Math.round(safe(bill.base * percent) / 10000);
+      }
+      if (
+        ["Discount", "Late fee waiver", "Negotiated adjustment"].includes(kind)
+      )
+        amount = -amount;
+      if (
+        kind === "Late fee waiver" &&
+        -amount >
+          bill.late +
+            bill.entries
+              .filter((e) => e.kind === "Late fee waiver")
+              .reduce((n, e) => n + e.amount, 0)
+      )
+        fail("Waiver exceeds the remaining late fee.");
+      if (bill.total + amount < 0) fail("Discount exceeds the bill.");
+      break;
+    }
+    case "Reverse": {
+      const original = bill.entries.find((e) => e.id === command.entryId);
+      if (
+        !original ||
+        original.reversedId !== null ||
+        bill.entries.some((e) => e.reversedId === original.id) ||
+        (!original.method && (!original.amount || bill.finalized))
+      )
+        fail("This entry cannot be reversed.");
+      kind = original.kind;
+      amount = -original.amount;
+      method = original.method;
+      reference = original.reference;
+      reversedId = original.id;
+      note = command.note;
+      if (!method && bill.total + amount < 0)
+        fail("Reverse related discounts first.");
+      break;
+    }
+    case "Policy":
+      if (bill.finalized || bill.status === "Cancelled")
+        fail("Cannot change this bill.");
+      note =
+        command.note +
+        " · " +
+        bill.rate +
+        " → " +
+        command.rate +
+        " paise per unit/day, grace " +
+        bill.grace +
+        " → " +
+        command.grace +
+        " days";
+      await tx.execute({
+        sql: "UPDATE inquiries SET late_rate=?,grace_days=? WHERE id=?",
+        args: [command.rate, command.grace, id],
+      });
+      break;
+    case "Finalize":
+      if (bill.finalized || bill.status !== "Completed")
+        fail("Return all items before finalizing.");
+      await tx.execute({
+        sql: "INSERT INTO bills(rental_id,total,snapshot) VALUES(?,?,?)",
+        args: [
+          id,
+          bill.total,
+          JSON.stringify({
+            lines: bill.lines,
+            base: bill.base,
+            late: bill.late,
+            total: bill.total,
+          }),
+        ],
+      });
+      break;
+  }
+  if (method && bill.paid + amount < 0)
+    fail("Refund or reversal exceeds net payments received.");
+  const inserted = await tx.execute({
+    sql: "INSERT INTO billing_entries(rental_id,request_id,kind,amount,method,reference,note,effective_date,reversed_id,percent_bps,actor) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+    args: [
+      id,
+      requestId,
+      kind,
+      amount,
+      method,
+      reference,
+      note,
+      date,
+      reversedId,
+      percent,
+      demo ? "Demo owner" : "Owner",
+    ],
+  });
+  await tx.execute({
+    sql: "UPDATE inquiries SET revision=revision+1 WHERE id=?",
+    args: [id],
+  });
+  const result = await readBill(tx, id);
+  if (method || command.action === "Finalize")
+    await saveReceipt(
+      tx,
+      result,
+      method ? "payment-" + inserted.lastInsertRowid : "final",
+    );
+
+  return result;
 }

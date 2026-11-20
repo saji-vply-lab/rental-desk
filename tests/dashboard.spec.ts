@@ -2,7 +2,10 @@ import { expect, test } from "@playwright/test";
 test("phone dashboard shows seeded stock", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
-  await expect(page.getByText("Folding chair")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Rental operations" }),
+  ).toBeVisible();
+  await expect(page.getByText("Folding chair")).toHaveCount(0);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -10,8 +13,10 @@ test("phone dashboard shows seeded stock", async ({ page }) => {
   ).toBe(true);
 });
 
-test("page dashboard stock and filter the full catalog", async ({ page }) => {
-  await page.goto("/");
+test("page inventory overview stock and filter the full catalog", async ({
+  page,
+}) => {
+  await page.goto("/#/inventory/overview");
   const list = page.getByRole("listitem");
   const totals = page.getByRole("region", { name: "Inventory totals" });
   await expect(list).toHaveCount(10);
@@ -29,7 +34,7 @@ test("page dashboard stock and filter the full catalog", async ({ page }) => {
 });
 
 test("search stock by item name, ID and category", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/#/inventory/overview");
   const search = page.getByRole("searchbox", { name: "Search inventory" });
   for (const query of [" PUMP ", "item-0002", "motors"]) {
     await search.fill(query);
@@ -43,7 +48,7 @@ test("search stock by item name, ID and category", async ({ page }) => {
 });
 
 test("combine category and text filters", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/#/inventory/overview");
   const category = page.getByRole("combobox", { name: "Category" });
   await category.selectOption("Furniture");
   await expect(page.getByRole("listitem")).toHaveCount(2);
@@ -58,7 +63,7 @@ test("navigate through inventory management and record a repair", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: "Manage inventory" }).click();
+  await page.getByRole("link", { name: "Inventory", exact: true }).click();
   await page.getByRole("link", { name: "Manage categories" }).click();
   await page.getByRole("link", { name: "Add category" }).click();
   await page.getByLabel("Category name").fill("Workshop demo");
@@ -350,4 +355,62 @@ test("record a booking advance and see its receipt in billing history", async ({
   expect((await download).suggestedFilename()).toMatch(/^PAY-\d+\.pdf$/);
   await dialog.getByRole("button", { name: "Close receipt" }).click();
   await expect(dialog).toHaveCount(0);
+});
+
+test("check items first, add customer inline, collect discounted issue and settle return into history", async ({
+  page,
+}) => {
+  const day = new Date().toISOString().slice(0, 10);
+  await page.goto("/");
+  await page.getByRole("link", { name: "New rental", exact: true }).click();
+  await page.getByLabel("Common start date").fill(day);
+  await page.getByLabel("Common return date").fill(day);
+  await page.getByLabel("Find an item").fill("Stock pot");
+  await page.getByRole("button", { name: "Choose Stock pot" }).click();
+  await page.getByLabel("Quantity for Stock pot").fill("2");
+  await page.getByRole("button", { name: "Add to lines" }).click();
+  await page.getByRole("button", { name: "Check availability" }).click();
+  await expect(page.getByText(/available for these dates/)).toBeVisible();
+  await page.getByRole("button", { name: "Add new customer" }).click();
+  await page.getByLabel("New customer name").fill("Counter example");
+  await page.getByLabel("Phone", { exact: true }).fill("5557770042");
+  await page.getByLabel("Address", { exact: true }).fill("Counter test lane");
+  await page.getByRole("button", { name: "Save and select customer" }).click();
+  await page.getByRole("button", { name: "Continue to issue" }).click();
+  const issue = page.locator("form.checkout");
+  await issue.getByLabel("Discount", { exact: true }).fill("40");
+  await issue.getByLabel("Discount reason").fill("Event rate");
+  await issue.getByRole("button", { name: "Review amount to collect" }).click();
+  await expect(issue.getByLabel("Collect now (₹)")).toHaveValue("200");
+  await issue.getByLabel("Collect now (₹)").fill("100");
+  await issue
+    .getByRole("button", { name: "Confirm issue and collection" })
+    .click();
+  await page.getByRole("button", { name: "Rental issue slip" }).click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "Agreed issue total: ₹200.00",
+  );
+  await page.getByRole("button", { name: "Close receipt" }).click();
+  const ret = page.locator("form.checkout");
+  if (!(await ret.isVisible()))
+    await page
+      .getByText("Return with discount or payment", { exact: true })
+      .click();
+  await ret.getByLabel("Quantity returning").fill("2");
+  await ret.getByLabel("Discount", { exact: true }).fill("20");
+  await ret.getByLabel("Discount reason").fill("Return allowance");
+  await ret.getByRole("button", { name: "Review amount to collect" }).click();
+  await expect(ret.getByLabel("Collect now (₹)")).toHaveValue("80");
+  await ret
+    .getByRole("button", { name: "Confirm return and collection" })
+    .click();
+  await expect(page.getByText("Paid in full")).toBeVisible();
+  await page.getByRole("link", { name: "Dashboard", exact: true }).click();
+  await expect(page.getByText("Counter example", { exact: false })).toHaveCount(
+    0,
+  );
+  await page.getByRole("link", { name: "History", exact: true }).click();
+  await expect(
+    page.getByRole("link", { name: /RNT-.*Counter example/ }).first(),
+  ).toBeVisible();
 });

@@ -16,7 +16,7 @@ const filters = [
 function Operations({ data }: { data: OperationsDashboard }) {
   const [filter, setFilter] =
     useState<(typeof filters)[number]>("All outstanding");
-  const { pending, today, bookings, activity } = data;
+  const { pending, today, bookings } = data;
   const overdue = pending.filter((l) => l.due < today),
     due = pending.filter((l) => l.due === today);
   const visible =
@@ -39,7 +39,6 @@ function Operations({ data }: { data: OperationsDashboard }) {
           ],
           ["Due today", sum(due), due.length + " return lines"],
           ["Overdue units", sum(overdue), overdue.length + " return lines"],
-          ["Available units", data.available, "Usable and uncommitted today"],
         ].map(([label, value, detail]) => (
           <article key={label}>
             <span>{label}</span>
@@ -48,81 +47,74 @@ function Operations({ data }: { data: OperationsDashboard }) {
           </article>
         ))}
       </div>
-      {data.finance && (
+      {!!data.settlements?.length && (
         <section className="ops-section">
-          <h3>Collections and balances</h3>
-          <dl className="bill-totals">
-            {[
-              ["Net collected today", data.finance.dayNet],
-              ["Net collected this month", data.finance.monthNet],
-              ["Outstanding finalized bills", data.finance.outstanding],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <dt>{label}</dt>
-                <dd>{rupees(Number(value))}</dd>
-              </div>
-            ))}
-          </dl>
-          {data.finance.customers.length > 0 && (
-            <details>
-              <summary>Customer balances</summary>
-              <Pages
-                rows={data.finance.customers}
-                render={(page) => (
-                  <ul>
-                    {page.map((c) => (
-                      <li key={c.id}>
-                        <a href={"#/customers/" + c.id}>{c.name}</a>
-                        <span>{rupees(c.balance)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              />
-            </details>
-          )}
-        </section>
-      )}
-      <section className="ops-section" aria-labelledby="critical">
-        <h3 id="critical">Critical returns</h3>
-        {critical.length ? (
+          <h3>Awaiting settlement</h3>
           <Pages
-            rows={critical}
+            rows={data.settlements}
             render={(page) => (
               <ul>
-                {page.map((b) => (
-                  <li key={b.rentalId + "-" + b.position}>
-                    <div>
-                      <b>{b.name}</b> · {b.quantity} booked
-                      <small>
-                        Needed {formatDate(b.start)} ·{" "}
-                        <a href={rentalLink(b.rentalId)}>
-                          RNT-{b.rentalId} · {b.customer}
-                        </a>
-                      </small>
-                      <details>
-                        <summary>Outstanding stock for this item</summary>
-                        {pending
-                          .filter((l) => l.itemId === b.itemId)
-                          .map((l) => (
-                            <p key={l.rentalId + "-" + l.position}>
-                              <a href={rentalLink(l.rentalId)}>
-                                RNT-{l.rentalId} · {l.customer}
-                              </a>{" "}
-                              · {l.outstanding} due {formatDate(l.due)}
-                            </p>
-                          ))}
-                      </details>
-                    </div>
+                {page.map((r) => (
+                  <li key={r.id}>
+                    <a href={rentalLink(r.id)}>
+                      RNT-{r.id} · {r.customer}
+                    </a>
+                    <span>
+                      {r.balance === null
+                        ? "Finalize bill"
+                        : r.balance < 0
+                          ? "Refund " + rupees(-r.balance)
+                          : "Collect " + rupees(r.balance)}
+                    </span>
                   </li>
                 ))}
               </ul>
             )}
           />
-        ) : (
-          <p>No current bookings depend on outstanding returns.</p>
-        )}
-      </section>
+        </section>
+      )}
+      {critical.length > 0 && (
+        <section className="ops-section" aria-labelledby="critical">
+          <h3 id="critical">Critical returns</h3>
+          {critical.length ? (
+            <Pages
+              rows={critical}
+              render={(page) => (
+                <ul>
+                  {page.map((b) => (
+                    <li key={b.rentalId + "-" + b.position}>
+                      <div>
+                        <b>{b.name}</b> · {b.quantity} booked
+                        <small>
+                          Needed {formatDate(b.start)} ·{" "}
+                          <a href={rentalLink(b.rentalId)}>
+                            RNT-{b.rentalId} · {b.customer}
+                          </a>
+                        </small>
+                        <details>
+                          <summary>Outstanding stock for this item</summary>
+                          {pending
+                            .filter((l) => l.itemId === b.itemId)
+                            .map((l) => (
+                              <p key={l.rentalId + "-" + l.position}>
+                                <a href={rentalLink(l.rentalId)}>
+                                  RNT-{l.rentalId} · {l.customer}
+                                </a>{" "}
+                                · {l.outstanding} due {formatDate(l.due)}
+                              </p>
+                            ))}
+                        </details>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            />
+          ) : (
+            <p>No current bookings depend on outstanding returns.</p>
+          )}
+        </section>
+      )}
       <section className="ops-section" aria-labelledby="returns">
         <div className="ops-heading">
           <h3 id="returns">Outstanding returns</h3>
@@ -174,71 +166,38 @@ function Operations({ data }: { data: OperationsDashboard }) {
           <p>No returns in this view.</p>
         )}
       </section>
-      <section className="ops-section">
-        <h3>Confirmed bookings</h3>
-        {bookings.length ? (
-          <Pages
-            rows={bookings}
-            render={(page) => (
-              <ul>
-                {page.map((b) => (
-                  <li key={b.rentalId + "-" + b.position}>
-                    <div>
-                      <b>{b.name}</b> · {b.quantity} units
-                      <small>
-                        <a href={rentalLink(b.rentalId)}>
-                          RNT-{b.rentalId} · {b.customer}
-                        </a>
-                      </small>
-                    </div>
-                    <div>
-                      {formatDate(b.start)} – {formatDate(b.due)}
-                      {b.atRisk ? <small>At risk</small> : null}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          />
-        ) : (
-          <p>No confirmed bookings awaiting issue.</p>
-        )}
-      </section>
-      <section className="ops-section">
-        <h3>Counter activity</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Activity</th>
-              <th>Today</th>
-              <th>This month</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              ["Book", "Bookings confirmed"],
-              ["Issue", "Rentals issued"],
-              ["Return", "Units returned"],
-              ["Cancel", "Cancellations"],
-            ].map(([action, label]) => {
-              const row = activity.find((r) => r.action === action);
-              return (
-                <tr key={action}>
-                  <th>{label}</th>
-                  <td>
-                    {(action === "Return" ? row?.dayUnits : row?.dayCount) ?? 0}
-                  </td>
-                  <td>
-                    {(action === "Return"
-                      ? row?.monthUnits
-                      : row?.monthCount) ?? 0}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </section>
+      {bookings.length > 0 && (
+        <section className="ops-section">
+          <h3>Confirmed bookings</h3>
+          {bookings.length ? (
+            <Pages
+              rows={bookings}
+              render={(page) => (
+                <ul>
+                  {page.map((b) => (
+                    <li key={b.rentalId + "-" + b.position}>
+                      <div>
+                        <b>{b.name}</b> · {b.quantity} units
+                        <small>
+                          <a href={rentalLink(b.rentalId)}>
+                            RNT-{b.rentalId} · {b.customer}
+                          </a>
+                        </small>
+                      </div>
+                      <div>
+                        {formatDate(b.start)} – {formatDate(b.due)}
+                        {b.atRisk ? <small>At risk</small> : null}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            />
+          ) : (
+            <p>No confirmed bookings awaiting issue.</p>
+          )}
+        </section>
+      )}
     </>
   );
 }

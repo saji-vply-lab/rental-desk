@@ -1,9 +1,9 @@
 import { saveReceipt } from "./receipt-document";
-import { readBill, unitCharges } from "./billing";
+import { applyBilling, readBill, unitCharges } from "./billing";
 import type { FastifyInstance } from "fastify";
 import type { Client, Transaction } from "@libsql/client";
 import { randomUUID } from "node:crypto";
-import { rentalAction } from "@rentaldesk/shared";
+import { availabilityRequest, rentalAction } from "@rentaldesk/shared";
 import { ownerAccess } from "./owner-access";
 
 function conflict(message: string): never {
@@ -36,6 +36,79 @@ export function rentalRoutes(
   demo: boolean,
 ) {
   const options = { preHandler: ownerAccess(demo) };
+  app.post("/api/availability", options, async (req, reply) => {
+    const input = availabilityRequest.safeParse(req.body);
+    if (!input.success)
+      return reply
+        .code(400)
+        .send({ message: "Check the dates and quantities." });
+    const { item, start, due, other, quantity } = input.data;
+    const tx = await client.transaction("read");
+    try {
+      const stock = (
+        await tx.execute({
+          sql: "SELECT owned-unusable AS usable FROM items WHERE id=? AND active=1",
+          args: [item],
+        })
+      ).rows[0];
+      if (!stock) return reply.code(404).send({ message: "Item unavailable." });
+      const commitments = (
+        await tx.execute({
+          sql: "SELECT start,due,units,status FROM stock_commitments WHERE item_id=?",
+          args: [item],
+        })
+      ).rows;
+      const demand = [
+        ...other,
+        ...commitments.map((c) => ({
+          start: String(c.start),
+          due: String(c.due),
+          units: Number(c.units),
+        })),
+      ].filter((c) => c.due >= start && c.start <= due);
+      const peak = Math.max(
+        ...[start, ...demand.map((c) => c.start).filter((s) => s >= start)].map(
+          (day) =>
+            demand.reduce(
+              (n, c) => n + (c.start <= day && day <= c.due ? c.units : 0),
+              0,
+            ),
+        ),
+      );
+      const available = Math.max(0, Number(stock.usable) - peak);
+      const out = commitments
+        .filter((c) => c.status !== "Booked")
+        .reduce((n, c) => n + Number(c.units), 0);
+      const booked = [
+        ...other,
+        ...commitments
+          .filter((c) => c.status === "Booked")
+          .map((c) => ({
+            start: String(c.start),
+            due: String(c.due),
+            units: Number(c.units),
+          })),
+      ].filter((c) => c.due >= start && c.start <= due);
+      const peakBooked = Math.max(
+        ...[start, ...booked.map((c) => c.start).filter((s) => s >= start)].map(
+          (day) =>
+            booked.reduce(
+              (n, c) => n + (c.start <= day && day <= c.due ? c.units : 0),
+              0,
+            ),
+        ),
+      );
+      return {
+        available,
+        shortage: Math.max(0, quantity - available),
+        atRisk:
+          available >= quantity &&
+          quantity > Number(stock.usable) - out - peakBooked,
+      };
+    } finally {
+      tx.close();
+    }
+  });
   app.post<{ Params: { id: string } }>(
     "/api/inquiries/:id/rental",
     options,
@@ -219,6 +292,71 @@ export function rentalRoutes(
             remaining,
           ],
         });
+        const checkout = parsed.data.checkout;
+        if (checkout) {
+          if (action !== "Issue" && action !== "Return")
+            conflict("Checkout is available at issue and return.");
+          let bill = await readBill(tx, Number(id));
+          if (checkout.discount > 0) {
+            if (!checkout.reason) conflict("Enter a discount reason.");
+            bill = await applyBilling(
+              tx,
+              Number(id),
+              randomUUID(),
+              bill.revision,
+              {
+                action: "Adjustment",
+                kind: "Discount",
+                amount: checkout.discount,
+                percent: checkout.percent,
+                note: checkout.reason,
+              },
+              demo,
+            );
+          }
+          if (
+            checkout.expectedTotal !== undefined &&
+            bill.total !== checkout.expectedTotal
+          )
+            conflict("The amount changed. Review the total again.");
+          if (checkout.payment > Math.max(0, bill.balance))
+            conflict("Collection exceeds the balance due.");
+          if (checkout.payment > 0)
+            bill = await applyBilling(
+              tx,
+              Number(id),
+              randomUUID(),
+              bill.revision,
+              {
+                action: "Payment",
+                kind: "Payment",
+                amount: checkout.payment,
+                method: checkout.method,
+                date: bill.today,
+                reference: checkout.reference,
+                note: action + " checkout",
+              },
+              demo,
+            );
+          if (checkout.finalize)
+            bill = await applyBilling(
+              tx,
+              Number(id),
+              randomUUID(),
+              bill.revision,
+              { action: "Finalize" },
+              demo,
+            );
+          if (checkout.preview) {
+            await tx.rollback();
+            return {
+              total: bill.total,
+              paid: bill.paid,
+              balance: bill.balance,
+              status,
+            };
+          }
+        }
         if (action === "Return" && quantity && position !== undefined) {
           const bill = await readBill(tx, Number(id)),
             line = bill.lines[position];
@@ -237,6 +375,11 @@ export function rentalRoutes(
             args: [
               JSON.stringify({
                 ...charge,
+                discount: checkout?.discount
+                  ? bill.entries.filter((e) => e.kind === "Discount").at(-1)
+                      ?.amount
+                  : 0,
+                collected: checkout?.payment ?? 0,
                 total: bill.total,
                 paid: bill.paid,
                 balance: bill.balance,

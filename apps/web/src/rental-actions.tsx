@@ -1,3 +1,4 @@
+import { CheckoutPanel } from "./checkout";
 import { ReceiptButton } from "./receipt";
 import { useState } from "react";
 import type { InquiryDetails } from "@rentaldesk/shared";
@@ -6,10 +7,12 @@ export function RentalActions({
   record,
   inquiry,
   refresh,
+  checkoutOpen = false,
 }: {
   record: InquiryDetails;
   inquiry: boolean;
   refresh: () => void;
+  checkoutOpen?: boolean;
 }) {
   const [busy, B] = useState(false),
     [risk, R] = useState(false),
@@ -89,6 +92,22 @@ export function RentalActions({
                 />
               )}
             </nav>
+            {(open ||
+              ["Issued", "Partially returned"].includes(record.status)) && (
+              <details open={checkoutOpen || undefined}>
+                <summary>
+                  {open
+                    ? "Issue with discount or payment"
+                    : "Return with discount or payment"}
+                </summary>
+                <CheckoutPanel
+                  key={record.revision}
+                  record={record}
+                  mode={open ? "Issue" : "Return"}
+                  refresh={refresh}
+                />
+              </details>
+            )}
             {["Issued", "Partially returned"].includes(record.status) && (
               <form
                 key={record.revision}

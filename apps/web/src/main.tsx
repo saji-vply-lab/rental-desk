@@ -10,7 +10,7 @@ import { Customers } from "./customers";
 import { InventoryScreen, Pages } from "./inventory";
 declare const __BRAND__: { label: string; accent: string };
 document.documentElement.style.setProperty("--brand-accent", __BRAND__.accent);
-function Dashboard() {
+function StockOverview() {
   const [category, setCategory] = useState("");
   const [search, setSearch] = useState("");
   const [overview, setOverview] = useState<Overview>();
@@ -51,10 +51,10 @@ function Dashboard() {
       </header>
       <main className="dashboard">
         <section className="dashboard-banner" aria-labelledby="dashboard-title">
-          <h1 id="dashboard-title">Dashboard</h1>
+          <h1 id="dashboard-title">Inventory overview</h1>
         </section>
         <nav aria-label="Shop workflows">
-          <a href="#/customers">Customers</a>
+          <a href="#/">Dashboard</a>
           <a href="#/inquiries">Rental inquiries</a>
           <a href="#/rental-drafts">Rentals</a>
         </nav>
@@ -87,7 +87,7 @@ function Dashboard() {
                 );
               })}
             </section>
-            <DashboardOperations />
+
             <section className="stock">
               <h2>Stock overview</h2>
               <nav>
@@ -174,6 +174,32 @@ function Dashboard() {
     </>
   );
 }
+function Dashboard() {
+  return (
+    <>
+      <header>
+        <div className="brand">
+          <Store aria-hidden="true" />
+          {__BRAND__.label}
+        </div>
+      </header>
+      <main className="dashboard">
+        <section className="dashboard-banner">
+          <h1>Dashboard</h1>
+        </section>
+        <nav aria-label="Shop workflows">
+          <a href="#/rental-drafts/new">New rental</a>
+          <a href="#/inquiries">Rental inquiries</a>
+          <a href="#/rental-drafts">Rentals</a>
+          <a href="#/inventory">Inventory</a>
+          <a href="#/customers">Customers</a>
+          <a href="#/rental-drafts/history">History</a>
+        </nav>
+        <DashboardOperations />
+      </main>
+    </>
+  );
+}
 function App() {
   const [path, setPath] = useState(location.hash.slice(1));
   useEffect(() => {
@@ -184,6 +210,7 @@ function App() {
     window.addEventListener("hashchange", change);
     return () => window.removeEventListener("hashchange", change);
   }, []);
+  if (path === "/inventory/overview") return <StockOverview />;
   if (path.startsWith("/inquiries") || path.startsWith("/rental-drafts"))
     return <Inquiries key={path} path={path} />;
   if (path.startsWith("/customers"))

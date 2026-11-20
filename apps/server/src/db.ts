@@ -171,6 +171,21 @@ export async function openShop(path: string, demo: boolean) {
         );
         await tx.execute("INSERT INTO migrations VALUES (9)");
       }
+      if (
+        !(await tx.execute("SELECT version FROM migrations WHERE version=10"))
+          .rows.length
+      ) {
+        await tx.executeMultiple(
+          readFileSync(
+            new URL(
+              "../../../database/migrations/0010-counter-work.sql",
+              import.meta.url,
+            ),
+            "utf8",
+          ),
+        );
+        await tx.execute("INSERT INTO migrations VALUES (10)");
+      }
       await tx.commit();
     } finally {
       tx.close();

@@ -1,3 +1,6 @@
+import { CounterHistory } from "./counter-history";
+import { CounterCustomer } from "./counter-customer";
+import { Availability } from "./availability";
 import { Billing } from "./billing";
 import { RentalActions } from "./rental-actions";
 import { ItemPicker } from "./item-picker";
@@ -30,8 +33,10 @@ const dateLabel = (date: string) => date.split("-").reverse().join("/");
 function Directory({
   rows,
   config,
+  history = false,
 }: {
   rows: InquirySummary[];
+  history?: boolean;
   config: Config;
 }) {
   const { base, title, noun, prefix } = config;
@@ -39,6 +44,7 @@ function Directory({
     [status, setStatus] = useState(""),
     [order, setOrder] = useState("recent");
   const matches = rows
+    .filter((r) => config !== drafts || Boolean(r.closed) === history)
     .filter(
       (r) => !status || (status === "At risk" ? r.atRisk : r.status === status),
     )
@@ -54,9 +60,16 @@ function Directory({
     );
   return (
     <>
-      <h1>{title}</h1>
+      <h1>{history ? "Rental history" : title}</h1>
       <nav>
-        <a href={base + "/new"}>New {noun}</a>
+        {history ? (
+          <a href={base}>Open rentals</a>
+        ) : (
+          <a href={base + "/new"}>New {noun}</a>
+        )}
+        {config === drafts && !history && (
+          <a href={base + "/history"}>History</a>
+        )}
       </nav>
       <label>
         Search by customer or reference
@@ -155,7 +168,14 @@ function Editor({
       E("Add at least one item.");
       return;
     }
+    const checkout =
+      (e.nativeEvent as SubmitEvent).submitter?.getAttribute("value") ===
+      "checkout";
     const customerId = Number(new FormData(e.currentTarget).get("customer"));
+    if (!customerId) {
+      E("Save or select a customer to continue.");
+      return;
+    }
     B(true);
     E("");
     try {
@@ -173,7 +193,7 @@ function Editor({
       });
       const data = await r.json();
       if (!r.ok) throw Error(data.message);
-      location.hash = base + "/" + data.id;
+      location.hash = base + "/" + data.id + (checkout ? "/checkout" : "");
     } catch (err) {
       E(err instanceof Error ? err.message : "Save failed.");
     } finally {
@@ -185,32 +205,13 @@ function Editor({
       <h1>
         {existing ? "Edit" : "New"} {noun}
       </h1>
-      {!customers.length ? (
-        <p>
-          <a href="#/customers/new">Add a customer</a> to start a {noun}.
-        </p>
-      ) : !active.length ? (
+      {!active.length ? (
         <p>
           <a href="#/inventory/new">Add an active item</a> to start a {noun}.
         </p>
       ) : (
         <form onSubmit={save}>
           <fieldset disabled={busy}>
-            <label>
-              Customer
-              <select
-                required
-                name="customer"
-                defaultValue={existing?.customerId ?? ""}
-              >
-                <option value="">Select customer</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} · {c.phones[0]}
-                  </option>
-                ))}
-              </select>
-            </label>
             <div className="fields">
               <label>
                 Common start date
@@ -326,6 +327,22 @@ function Editor({
                     })}
                   </div>
                 </details>
+                <Availability
+                  key={JSON.stringify([start, due, lines])}
+                  input={{
+                    item: l.itemId,
+                    start: l.startOverride ?? start,
+                    due: l.dueOverride ?? due,
+                    quantity: l.quantity,
+                    other: lines
+                      .filter((x) => x.key !== l.key && x.itemId === l.itemId)
+                      .map((x) => ({
+                        start: x.startOverride ?? start,
+                        due: x.dueOverride ?? due,
+                        units: x.quantity,
+                      })),
+                  }}
+                />
                 <button
                   className="line-remove"
                   type="button"
@@ -337,8 +354,15 @@ function Editor({
                 </button>
               </fieldset>
             ))}
+            <CounterCustomer
+              customers={customers}
+              initial={existing?.customerId}
+            />
             <p>Saving this {noun} does not reserve stock.</p>
             {error && <p role="alert">{error}</p>}
+            {config === drafts && (
+              <button value="checkout">Continue to issue</button>
+            )}
             <button>Save {noun}</button> <a href={base}>Cancel</a>
           </fieldset>
         </form>
@@ -380,7 +404,7 @@ export function Inquiries({ path }: { path: string }) {
           T(record);
           if (!record || record.status === "Draft") F({ customers, inventory });
         }
-      } else if (id) {
+      } else if (id && id !== "history") {
         const d = await get(api + "/" + encodeURIComponent(id));
         if (alive) T(d);
       } else {
@@ -423,7 +447,10 @@ export function Inquiries({ path }: { path: string }) {
       ) : form ? (
         <Editor {...form} config={config} existing={details} />
       ) : rows ? (
-        <Directory rows={rows} config={config} />
+        <>
+          <Directory rows={rows} config={config} history={id === "history"} />
+          {id === "history" && <CounterHistory />}
+        </>
       ) : details ? (
         <>
           <h1>
@@ -466,6 +493,12 @@ export function Inquiries({ path }: { path: string }) {
               </li>
             ))}
           </ul>
+          <RentalActions
+            record={details}
+            checkoutOpen={action === "checkout"}
+            inquiry={config === inquiries}
+            refresh={() => A(attempt + 1)}
+          />
           {config === drafts && (
             <Billing
               id={details.id}
@@ -473,11 +506,6 @@ export function Inquiries({ path }: { path: string }) {
               refresh={() => A(attempt + 1)}
             />
           )}
-          <RentalActions
-            record={details}
-            inquiry={config === inquiries}
-            refresh={() => A(attempt + 1)}
-          />
         </>
       ) : error ? (
         <button onClick={() => A(attempt + 1)}>Retry</button>

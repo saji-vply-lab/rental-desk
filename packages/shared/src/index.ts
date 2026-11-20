@@ -132,6 +132,7 @@ export const inquiryWrite = z
   );
 export type InquiryLine = z.infer<typeof inquiryLine>;
 export type InquirySummary = {
+  closed: number;
   atRisk: number;
   status: string;
   issuedAt: string | null;
@@ -162,7 +163,20 @@ export type InquiryDetails = InquirySummary & {
   })[];
 };
 
+export const checkoutFields = z.object({
+  discount: z.number().int().min(0).max(100000000000),
+  percent: z.boolean(),
+  reason: z.string().trim().max(500),
+  payment: z.number().int().min(0).max(100000000000),
+  method: z.enum(["Cash", "UPI", "Bank transfer"]),
+  reference: z.string().trim().max(160),
+  finalize: z.boolean(),
+  preview: z.boolean(),
+  expectedTotal: z.number().int().nonnegative().optional(),
+});
+export type Checkout = z.infer<typeof checkoutFields>;
 export const rentalAction = z.object({
+  checkout: checkoutFields.optional(),
   acceptRisk: z.boolean().optional(),
   action: z.enum(["Book", "Issue", "Cancel", "Return"]),
   revision: z.number().int().positive(),
@@ -191,6 +205,7 @@ export type DashboardBooking = {
   atRisk: number;
 };
 export type OperationsDashboard = {
+  settlements?: { id: number; customer: string; balance: number | null }[];
   finance?: {
     dayNet: number;
     monthNet: number;
@@ -307,3 +322,20 @@ export type ReceiptDocument = {
   lines: string[];
   footer: string;
 };
+export const availabilityRequest = z
+  .object({
+    item: z.string().min(1),
+    start: z.iso.date(),
+    due: z.iso.date(),
+    quantity: z.number().int().positive(),
+    other: z
+      .array(
+        z.object({
+          start: z.iso.date(),
+          due: z.iso.date(),
+          units: z.number().int().positive(),
+        }),
+      )
+      .max(199),
+  })
+  .refine((v) => v.due >= v.start && v.other.every((l) => l.start <= l.due));
