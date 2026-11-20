@@ -1,3 +1,4 @@
+import { saveReceipt } from "./receipt-document";
 import { readBill, unitCharges } from "./billing";
 import type { FastifyInstance } from "fastify";
 import type { Client, Transaction } from "@libsql/client";
@@ -243,6 +244,15 @@ export function rentalRoutes(
               Number(event.lastInsertRowid),
             ],
           });
+        }
+        if (action !== "Cancel") {
+          const key =
+            action === "Issue"
+              ? "issue"
+              : action === "Book"
+                ? "booking"
+                : "return-" + event.lastInsertRowid;
+          await saveReceipt(tx, await readBill(tx, Number(id)), key);
         }
         await tx.commit();
         return { status };

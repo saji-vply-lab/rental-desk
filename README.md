@@ -34,3 +34,9 @@ Place an optional `theme.css` next to the selected tenant’s `brand.json`. The 
 Rental estimates use inclusive calendar dates and the agreed item rate. Fixed periods round up to whole periods for each quantity batch. Returned units stop accruing on their return date. Outstanding issued units are projected to the later of today and their expected return. The starting late fee is ₹0; an owner can record a per-unit daily fee and grace period for an open rental with a reason.
 
 Open a rental and expand **Payments and billing adjustments** to record an advance, partial payment, refund, delivery or pickup charge, damage or loss charge, discount, or negotiated reduction. Percentage discounts use the base rental charge at the time the discount is recorded. Historical entries can be reversed with a reason. **Finalize bill** becomes available after all stock is returned and freezes the charges. Payments and refunds continue against that final total. Dashboard collections use payment dates and are net of refunds and corrections. Financial actions require owner access outside the fictional demo.
+
+## Receipts and sharing
+
+Rental details offer booking confirmations, issue slips, individual return receipts, payment/refund receipts and finalized bills. Open the document to download a PDF, print the selected receipt, or choose a saved customer phone number for a WhatsApp summary. On devices supporting file sharing, **Share PDF** opens the system share sheet. Otherwise download the PDF and attach it in WhatsApp. WhatsApp transmission needs connectivity. Document preparation, PDF export and print work through the local shop server without an external document service.
+
+New transaction documents are frozen in SQLite when the transaction commits. Draft and open billing estimates reflect the current rental. Older records use saved transaction data; returns recorded before billing was introduced can show quantities and condition only.

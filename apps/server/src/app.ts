@@ -1,3 +1,4 @@
+import { receiptRoutes } from "./receipts";
 import { billingRoutes } from "./billing";
 import { dashboardRoutes } from "./dashboard";
 import { rentalRoutes } from "./rentals";
@@ -18,6 +19,7 @@ export async function createApp(path: string, demo: boolean) {
   app.get("/api/overview", async () =>
     overviewSchema.parse(await shop.overview()),
   );
+  receiptRoutes(app, shop.client, demo);
   billingRoutes(app, shop.client, demo);
   dashboardRoutes(app, shop.client, demo);
   rentalRoutes(app, shop.client, demo);

@@ -1,3 +1,4 @@
+import { saveReceipt } from "./receipt-document";
 import type { Client, Transaction } from "@libsql/client";
 import type { FastifyInstance } from "fastify";
 import {
@@ -301,7 +302,7 @@ export function billingRoutes(
         }
         if (method && bill.paid + amount < 0)
           fail("Refund or reversal exceeds net payments received.");
-        await tx.execute({
+        const inserted = await tx.execute({
           sql: "INSERT INTO billing_entries(rental_id,request_id,kind,amount,method,reference,note,effective_date,reversed_id,percent_bps,actor) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
           args: [
             id,
@@ -322,6 +323,12 @@ export function billingRoutes(
           args: [id],
         });
         const result = await readBill(tx, id);
+        if (method || command.action === "Finalize")
+          await saveReceipt(
+            tx,
+            result,
+            method ? "payment-" + inserted.lastInsertRowid : "final",
+          );
         await tx.commit();
         return result;
       } finally {

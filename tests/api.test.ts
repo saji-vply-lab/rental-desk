@@ -215,6 +215,12 @@ test("finalize rental, record an advance, correct a payment, and preserve finali
         },
       });
     expect((await act("Book")).statusCode).toBe(200);
+    const receipt = async (key: string) =>
+      (await app.inject(url + "/receipts/" + key)).json().doc;
+    const booking = await receipt("booking");
+    expect(booking.title).toBe("Booking confirmation");
+    expect(booking.lines.join(" ")).toContain("Banquet table");
+    expect((await app.inject(url + "/receipts/final")).statusCode).toBe(404);
     const advance = {
       requestId: crypto.randomUUID(),
       revision: (await bill()).revision,
@@ -291,6 +297,22 @@ test("finalize rental, record an advance, correct a payment, and preserve finali
         })
       ).json().paid,
     ).toBe(0);
+    expect(await receipt("booking")).toEqual(booking);
+    expect((await receipt("final")).lines).toContain("Net paid: ₹150.00");
+    const payment = await receipt("payment-" + settled.entries[0].id);
+    expect(payment.lines.join(" ")).toContain("₹150.00 · UPI");
+    const events = (await app.inject(url)).json().events;
+    const firstReturn = events
+      .filter((e: { action: string }) => e.action === "Return")
+      .at(-1);
+    const returned = await receipt("return-" + firstReturn.id);
+    expect(returned.lines).toContain("Remaining on this line: 1");
+    const pdf = await app.inject(
+      url + "/receipts/return-" + firstReturn.id + "?format=pdf",
+    );
+    expect(pdf.statusCode).toBe(200);
+    expect(pdf.headers["content-type"]).toBe("application/pdf");
+    expect(pdf.rawPayload.subarray(0, 5).toString()).toBe("%PDF-");
     const finance = (await app.inject("/api/dashboard/operations")).json()
       .finance;
     expect(finance.dayNet).toBe(0);

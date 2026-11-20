@@ -1,13 +1,4 @@
-import { rupees } from "./billing";
-function returnAmounts(snapshot: string) {
-  const b = JSON.parse(snapshot);
-  return [
-    "Rental charges for this return: " + rupees(b.base),
-    "Late fees for this return: " + rupees(b.late),
-    "Net paid at return: " + rupees(b.paid),
-    "Estimated balance at return: " + rupees(b.balance),
-  ];
-}
+import { ReceiptButton } from "./receipt";
 import { useState } from "react";
 import type { InquiryDetails } from "@rentaldesk/shared";
 import { headers } from "./owner-access";
@@ -22,7 +13,6 @@ export function RentalActions({
 }) {
   const [busy, B] = useState(false),
     [risk, R] = useState(false),
-    [receipt, setReceipt] = useState(""),
     [error, E] = useState("");
   async function perform(action: string, payload: object = {}) {
     B(true);
@@ -65,27 +55,6 @@ export function RentalActions({
           Confirm at-risk booking
         </button>
       )}
-      {receipt && (
-        <div className="return-slip">
-          <h2>Return receipt</h2>
-          <p style={{ whiteSpace: "pre-line" }}>{receipt}</p>
-          <button onClick={() => window.print()}>
-            Print receipt / Save PDF
-          </button>
-          {typeof navigator.share === "function" && (
-            <button
-              onClick={() =>
-                navigator.share({ text: receipt }).catch((err) => {
-                  if (err.name !== "AbortError") E("Sharing unavailable.");
-                })
-              }
-            >
-              Share receipt
-            </button>
-          )}
-          <button onClick={() => setReceipt("")}>Close receipt</button>
-        </div>
-      )}
       <fieldset disabled={busy}>
         {inquiry ? (
           <button onClick={() => perform("Convert")}>
@@ -105,46 +74,19 @@ export function RentalActions({
                   </button>
                 </>
               )}
-              <button
-                onClick={() => {
-                  setReceipt("");
-                  requestAnimationFrame(() => window.print());
-                }}
-              >
-                Print / Save PDF
-              </button>
-              {typeof navigator.share === "function" && (
-                <button
-                  onClick={() =>
-                    navigator
-                      .share({
-                        title: "Rental RNT-" + record.id,
-                        text: [
-                          "Rental RNT-" + record.id,
-                          record.customer,
-                          record.status,
-                          ...record.lines.map(
-                            (l) =>
-                              l.itemId +
-                              " · " +
-                              l.name +
-                              " × " +
-                              l.quantity +
-                              " · " +
-                              (l.startOverride ?? record.start) +
-                              " to " +
-                              (l.dueOverride ?? record.due),
-                          ),
-                        ].join("\n"),
-                      })
-                      .catch((err) => {
-                        if (err.name !== "AbortError")
-                          E("Sharing unavailable.");
-                      })
-                  }
-                >
-                  Share rental
-                </button>
+              {record.events.some((e) => e.action === "Book") && (
+                <ReceiptButton
+                  rental={record.id}
+                  documentKey="booking"
+                  label="Booking confirmation"
+                />
+              )}
+              {record.issuedAt && (
+                <ReceiptButton
+                  rental={record.id}
+                  documentKey="issue"
+                  label="Rental issue slip"
+                />
               )}
             </nav>
             {["Issued", "Partially returned"].includes(record.status) && (
@@ -221,36 +163,11 @@ export function RentalActions({
                   <span>
                     {record.lines[event.position]?.name} · {event.quantity}{" "}
                     {event.condition} · {event.remaining} remaining
-                    <button
-                      onClick={() =>
-                        setReceipt(
-                          [
-                            "Return #" +
-                              event.id +
-                              " · Rental RNT-" +
-                              record.id,
-                            record.customer,
-                            new Date(
-                              event.created.replace(" ", "T") + "Z",
-                            ).toLocaleString("en-GB"),
-                            record.lines[event.position!].itemId +
-                              " · " +
-                              record.lines[event.position!].name,
-                            "Returned: " +
-                              event.quantity +
-                              " (" +
-                              event.condition +
-                              ")",
-                            "Remaining after this return: " + event.remaining,
-                            ...(event.billing_snapshot
-                              ? returnAmounts(event.billing_snapshot)
-                              : []),
-                          ].join("\n"),
-                        )
-                      }
-                    >
-                      View receipt
-                    </button>
+                    <ReceiptButton
+                      rental={record.id}
+                      documentKey={"return-" + event.id}
+                      label={"View return receipt #" + event.id}
+                    />
                   </span>
                 )}
               </li>

@@ -290,4 +290,35 @@ test("record a booking advance and see its receipt in billing history", async ({
   await expect(page.getByText(/Cash DEMO-ADVANCE/)).toBeVisible();
   await page.reload();
   await expect(page.getByText(/Cash DEMO-ADVANCE/)).toBeVisible();
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "canShare", {
+      configurable: true,
+      value: () => true,
+    });
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: async (data: ShareData) => {
+        const file = data.files?.[0];
+        document.documentElement.dataset.sharedPdf = file
+          ? file.name + " " + (await file.slice(0, 5).text())
+          : "";
+      },
+    });
+  });
+  await page.getByRole("button", { name: /Payment receipt #/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Payment receipt" });
+  await expect(dialog).toContainText("₹125.50");
+  await expect(
+    dialog.getByRole("link", { name: "Share summary via WhatsApp" }),
+  ).toHaveAttribute("href", /^https:\/\/wa\.me\/12025550102\?text=/);
+  await dialog.getByRole("button", { name: "Share PDF" }).click();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-shared-pdf",
+    /^PAY-\d+\.pdf %PDF-/,
+  );
+  const download = page.waitForEvent("download");
+  await dialog.getByRole("link", { name: "Download PDF" }).click();
+  expect((await download).suggestedFilename()).toMatch(/^PAY-\d+\.pdf$/);
+  await dialog.getByRole("button", { name: "Close receipt" }).click();
+  await expect(dialog).toHaveCount(0);
 });

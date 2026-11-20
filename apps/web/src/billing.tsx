@@ -1,3 +1,4 @@
+import { ReceiptButton } from "./receipt";
 import { useEffect, useState, type FormEvent } from "react";
 import {
   adjustmentTypes,
@@ -19,7 +20,6 @@ export function Billing({
   revision: number;
   refresh: () => void;
 }) {
-  const [receipt, showReceipt] = useState("");
   const [bill, B] = useState<Bill>(),
     [error, E] = useState(""),
     [busy, S] = useState(false),
@@ -348,27 +348,11 @@ export function Billing({
           </b>
         </p>
       )}
-      {receipt && (
-        <section className="payment-receipt">
-          <h3>Payment receipt</h3>
-          <p style={{ whiteSpace: "pre-line" }}>{receipt}</p>
-          <button onClick={() => window.print()}>
-            Print payment receipt / Save PDF
-          </button>
-          {typeof navigator.share === "function" && (
-            <button
-              onClick={() =>
-                navigator.share({ text: receipt }).catch((e) => {
-                  if (e.name !== "AbortError") E("Sharing unavailable.");
-                })
-              }
-            >
-              Share payment receipt
-            </button>
-          )}
-          <button onClick={() => showReceipt("")}>Close payment receipt</button>
-        </section>
-      )}
+      <ReceiptButton
+        rental={id}
+        documentKey={bill.finalized ? "final" : "estimate"}
+        label={bill.finalized ? "View final bill" : "View rental estimate"}
+      />
       {bill.entries.length > 0 && (
         <>
           <h3>Billing history</h3>
@@ -393,27 +377,11 @@ export function Billing({
                     <span>
                       {rupees(e.amount)}
                       {e.method && (
-                        <button
-                          onClick={() =>
-                            showReceipt(
-                              [
-                                "Receipt #" + e.id + " · Rental RNT-" + id,
-                                bill.customer,
-                                displayDate(e.date),
-                                e.reversedId
-                                  ? "Reversal of #" + e.reversedId
-                                  : e.kind,
-                                rupees(e.amount) + " · " + e.method,
-                                e.reference,
-                                e.note,
-                              ]
-                                .filter(Boolean)
-                                .join("\n"),
-                            )
-                          }
-                        >
-                          Payment receipt #{e.id}
-                        </button>
+                        <ReceiptButton
+                          rental={id}
+                          documentKey={"payment-" + e.id}
+                          label={"Payment receipt #" + e.id}
+                        />
                       )}
                     </span>
                   )}

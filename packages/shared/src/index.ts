@@ -297,3 +297,13 @@ export type Bill = {
   entries: BillingEntry[];
 };
 export type BillingCommand = z.infer<typeof billingCommand>;
+export type ReceiptDocument = {
+  title: string;
+  reference: string;
+  shop: string;
+  customer: string;
+  rental: string;
+  date: string;
+  lines: string[];
+  footer: string;
+};
