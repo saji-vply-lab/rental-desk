@@ -305,12 +305,41 @@ test("record a booking advance and see its receipt in billing history", async ({
       },
     });
   });
+  await page.route("**/receipts/payment-*?format=preview", async (route) => {
+    const response = await route.fetch();
+    const data = await response.json();
+    await route.fulfill({
+      response,
+      json: {
+        ...data,
+        phones: [
+          ...data.phones,
+          "09876543210",
+          "98765 43210",
+          "0091 98765 43210",
+        ],
+      },
+    });
+  });
   await page.getByRole("button", { name: /Payment receipt #/ }).click();
   const dialog = page.getByRole("dialog", { name: "Payment receipt" });
   await expect(dialog).toContainText("₹125.50");
   await expect(
     dialog.getByRole("link", { name: "Share summary via WhatsApp" }),
   ).toHaveAttribute("href", /^https:\/\/wa\.me\/12025550102\?text=/);
+  const recipient = dialog.getByLabel("Customer phone");
+  const shareLink = dialog.getByRole("link", {
+    name: "Share summary via WhatsApp",
+  });
+  for (const phone of ["09876543210", "98765 43210", "0091 98765 43210"]) {
+    await recipient.selectOption(phone);
+    await expect(shareLink).toHaveAttribute(
+      "href",
+      /^https:\/\/wa\.me\/919876543210\?text=/,
+    );
+  }
+  await recipient.selectOption("");
+  await expect(shareLink).toHaveAttribute("href", /^https:\/\/wa\.me\/\?text=/);
   await dialog.getByRole("button", { name: "Share PDF" }).click();
   await expect(page.locator("html")).toHaveAttribute(
     "data-shared-pdf",

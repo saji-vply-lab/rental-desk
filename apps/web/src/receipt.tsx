@@ -5,7 +5,9 @@ import { headers } from "./owner-access";
 function whatsAppNumber(phone: string) {
   const digits = phone.replace(/\D/g, "");
   if (phone.trim().startsWith("+")) return digits;
-  return digits.length === 10 ? "91" + digits : digits.replace(/^00/, "");
+  if (digits.startsWith("00")) return digits.slice(2);
+  if (/^0\d{10}$/.test(digits)) return "91" + digits.slice(1);
+  return digits.length === 10 ? "91" + digits : digits;
 }
 type Preview = {
   doc: ReceiptDocument;
@@ -141,6 +143,7 @@ function ReceiptDialog({
               <label>
                 Customer phone{" "}
                 <select value={phone} onChange={(e) => S(e.target.value)}>
+                  <option value="">Choose contact in WhatsApp</option>
                   {preview.phones.map((p) => (
                     <option key={p}>{p}</option>
                   ))}
